@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.vsix
+*.tsbuildinfo
+coverage/
+.DS_Store
+*.tether-tmp-*

@@ -1,0 +1,58 @@
+{
+  "name": "tether-md",
+  "version": "0.1.0",
+  "description": "Anchored comments for Markdown that AI agents act on, but never apply. The `tether` CLI: comment, suggest, accept/reject, and export a byte-identical clean document.",
+  "type": "module",
+  "bin": {
+    "tether": "./dist/cli.js",
+    "tether-md": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "comments",
+    "review",
+    "suggest-mode",
+    "track-changes",
+    "ai",
+    "agents",
+    "claude",
+    "human-in-the-loop",
+    "cli",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "annotations"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tether-md/tether-md.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/tether-md/tether-md#readme",
+  "bugs": "https://github.com/tether-md/tether-md/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@tether-md/kernel": "^0.1.0",
+    "zod": "^4.4.3"
+  },
+  "license": "MIT"
+}

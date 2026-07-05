@@ -1,0 +1,67 @@
+{
+  "name": "@tether-md/kernel",
+  "version": "0.1.0",
+  "description": "The Tether MD projection kernel: anchored comments in Markdown, W3C-selector re-anchoring that survives edits, and a byte-identical clean export — P(raw) → clean.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "markdown",
+    "comments",
+    "annotations",
+    "anchoring",
+    "text-anchoring",
+    "web-annotation",
+    "suggest-mode",
+    "review",
+    "ai",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tether-md/tether-md.git",
+    "directory": "packages/kernel"
+  },
+  "homepage": "https://github.com/tether-md/tether-md#readme",
+  "bugs": "https://github.com/tether-md/tether-md/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "npm run build"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "approx-string-match": "^2.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "fast-check": "^4.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

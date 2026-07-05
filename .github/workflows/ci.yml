@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  invariants:
+    name: kernel invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @tether-md/kernel
+      - name: The three kernel invariants (re-anchor-or-orphan, zero-perturbation, export identity)
+        run: npx vitest run test/invariants.test.ts
+        working-directory: packages/kernel
+
+  package:
+    name: extension packages cleanly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run package
+        working-directory: packages/vscode-ext
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tether-md-vsix
+          path: packages/vscode-ext/tether-md.vsix
+
+  links:
+    name: markdown links
+    runs-on: ubuntu-latest
+    # Repo URLs are dead until the repo is public — remove continue-on-error after launch.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: '**/*.md'
+          fail: true

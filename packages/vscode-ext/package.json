@@ -1,0 +1,106 @@
+{
+  "name": "tether-md-vscode",
+  "private": true,
+  "displayName": "Tether MD",
+  "version": "0.1.0",
+  "description": "Google-Docs-style anchored comments and AI suggestion review for Markdown — comments live in the file, survive edits, and export away byte-identically.",
+  "publisher": "tether-md",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#171C26",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "comments",
+    "review",
+    "ai",
+    "suggestions",
+    "annotations",
+    "track changes",
+    "suggest mode",
+    "agent",
+    "human-in-the-loop"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tether-md/tether-md.git",
+    "directory": "packages/vscode-ext"
+  },
+  "homepage": "https://github.com/tether-md/tether-md#readme",
+  "bugs": {
+    "url": "https://github.com/tether-md/tether-md/issues"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Tether MD",
+      "properties": {
+        "tetherMd.enable": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Enable Tether MD. When false the extension is inert: no comment threads, decorations, or diagnostics are created and its commands do nothing. Resource-scoped, so it can be turned off per folder; re-enabling after it was off at startup requires a window reload."
+        }
+      }
+    },
+    "commands": [
+      { "command": "tetherMd.addComment", "title": "Tether: Add Comment from Selection" },
+      { "command": "tetherMd.exportClean", "title": "Tether: Export Clean Document" },
+      { "command": "tetherMd.createComment", "title": "Add Tether Comment" },
+      { "command": "tetherMd.acceptSuggestion", "title": "Accept", "enablement": "commentController == tether-md" },
+      { "command": "tetherMd.rejectSuggestion", "title": "Reject", "enablement": "commentController == tether-md" },
+      { "command": "tetherMd.deleteThread", "title": "Delete", "enablement": "commentController == tether-md" }
+    ],
+    "keybindings": [
+      { "command": "tetherMd.addComment", "key": "ctrl+alt+c", "mac": "cmd+alt+c", "when": "editorTextFocus && editorLangId == markdown" }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "tetherMd.createComment", "when": "false" },
+        { "command": "tetherMd.acceptSuggestion", "when": "false" },
+        { "command": "tetherMd.rejectSuggestion", "when": "false" },
+        { "command": "tetherMd.deleteThread", "when": "false" },
+        { "command": "tetherMd.clearOrphan", "when": "false" }
+      ],
+      "editor/context": [
+        { "command": "tetherMd.addComment", "when": "editorHasSelection && editorLangId == markdown", "group": "1_modification" }
+      ],
+      "comments/commentThread/context": [
+        { "command": "tetherMd.createComment", "group": "inline", "when": "commentController == tether-md" }
+      ],
+      "comments/commentThread/title": [
+        { "command": "tetherMd.acceptSuggestion", "group": "inline@1", "when": "commentController == tether-md && commentThread =~ /^suggestion:/" },
+        { "command": "tetherMd.rejectSuggestion", "group": "inline@2", "when": "commentController == tether-md && commentThread =~ /^suggestion:/" },
+        { "command": "tetherMd.deleteThread", "group": "inline@3", "when": "commentController == tether-md && commentThread =~ /^comment:/" }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies -o tether-md.vsix"
+  },
+  "dependencies": {
+    "@tether-md/kernel": "*"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/vscode": "1.85.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1"
+  }
+}

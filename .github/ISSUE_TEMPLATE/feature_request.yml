@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an improvement to Tether MD
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed solution
+  - type: textarea
+    attributes:
+      label: Alternatives considered

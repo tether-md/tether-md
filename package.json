@@ -1,0 +1,13 @@
+{
+  "name": "tether-md-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tether MD — anchored comments for Markdown that AI agents act on, but never apply (monorepo root).",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build -w @tether-md/kernel && npm run build -w tether-md && npm run build -w tether-md-vscode",
+    "typecheck": "npm run build -w @tether-md/kernel && npm run typecheck -w tether-md && npm run typecheck -w tether-md-vscode",
+    "test": "npm run test -w @tether-md/kernel && npm run test -w tether-md && npm run test -w tether-md-vscode"
+  },
+  "license": "MIT"
+}

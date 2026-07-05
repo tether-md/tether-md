@@ -1,0 +1,43 @@
+# Release procedure:
+#   1. Bump versions in packages/*/package.json (kernel, cli, vscode-ext in lockstep).
+#   2. Commit, then tag and push: git tag vX.Y.Z && git push origin vX.Y.Z
+#   3. This workflow publishes @tether-md/kernel and tether-md to npm (trusted
+#      publishing via OIDC — no npm token), the extension to the VS Code
+#      Marketplace and Open VSX, and creates a GitHub release with the .vsix.
+# Required repo secrets: VSCE_PAT (VS Code Marketplace), OVSX_PAT (Open VSX).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm publish --provenance -w @tether-md/kernel
+      - run: npm publish --provenance -w tether-md
+      - run: npm run package
+        working-directory: packages/vscode-ext
+      - run: npx @vscode/vsce publish --packagePath packages/vscode-ext/tether-md.vsix --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - run: npx ovsx publish packages/vscode-ext/tether-md.vsix -p ${{ secrets.OVSX_PAT }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: packages/vscode-ext/tether-md.vsix
+          generate_release_notes: true

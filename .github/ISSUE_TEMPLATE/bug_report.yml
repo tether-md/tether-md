@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a bug in Tether MD
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Minimal reproduction
+      description: Minimal .md + the commands you ran
+      render: shell
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Version
+      description: "`tether --version` (or extension version)"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Surface
+      options:
+        - CLI
+        - VS Code extension
+        - MCP server
+        - kernel API
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: OS

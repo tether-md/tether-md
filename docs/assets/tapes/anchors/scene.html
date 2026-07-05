@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tether MD — anchors scene</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1000px; height: 560px; overflow: hidden; }
+  body {
+    background: #171C26;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  #stage { position: relative; width: 1000px; height: 560px; background: #171C26; }
+
+  /* ---------- window chrome ---------- */
+  #chrome {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px;
+    background: #1F2632;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; padding: 0 16px;
+  }
+  .light { width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; }
+  #filechip {
+    margin-left: 14px; padding: 4px 11px; border-radius: 6px;
+    background: rgba(255,255,255,0.07); color: #E7EAF0; font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #filechip .dot { width: 6px; height: 6px; border-radius: 50%; background: #F2A33C; }
+  #wordmark {
+    margin-left: auto; padding: 4px 11px; border-radius: 6px;
+    background: rgba(242,163,60,0.13); color: #F2A33C;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.2px;
+  }
+
+  /* ---------- document page ---------- */
+  #page {
+    position: absolute; left: 40px; top: 74px; width: 580px; height: 290px;
+    background: #F7F5F0; border-radius: 10px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
+    padding: 30px 36px;
+    color: #171C26;
+  }
+  #page h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; margin-bottom: 14px; }
+  #page p { font-size: 15px; line-height: 1.62; color: #2A3140; }
+  #anchor { padding: 2px 0; }
+  .ecaret {
+    display: inline-block; width: 2px; height: 14px; background: #171C26;
+    vertical-align: -2px; opacity: 0;
+  }
+
+  /* ---------- leader + gutter marker ---------- */
+  #leader { position: absolute; left: 0; top: 0; width: 1000px; height: 560px; pointer-events: none; }
+  #leaderPath { fill: none; stroke: #F2A33C; stroke-width: 1.5; }
+  #marker {
+    position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: #F2A33C; opacity: 0;
+  }
+
+  /* ---------- comment card ---------- */
+  #card {
+    position: absolute; left: 648px; width: 300px;
+    background: #1F2632; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 12px 14px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.4);
+    color: #E7EAF0; opacity: 0;
+  }
+  #cardhead { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #556078; }
+  #cardhead .who { color: #E7EAF0; font-weight: 600; }
+  .avatar { width: 16px; height: 16px; border-radius: 50%; background: #F2A33C; flex: none; }
+  .avatar span { display: block; text-align: center; font-size: 9px; font-weight: 700; color: #171C26; line-height: 16px; }
+  #pill {
+    margin-left: auto; font-size: 10px; font-weight: 700; padding: 2px 9px;
+    border-radius: 99px; letter-spacing: 0.2px; white-space: nowrap;
+  }
+  #cbody { font-size: 12.5px; line-height: 1.5; color: #E7EAF0; margin-top: 7px; }
+
+  /* ---------- captions + footer chip ---------- */
+  .caption {
+    position: absolute; top: 452px; left: 310px; width: 640px;
+    font-size: 13px; color: #8A94AA; opacity: 0; letter-spacing: 0.1px;
+  }
+  .caption b { color: #E7EAF0; font-weight: 600; }
+  #footchip {
+    position: absolute; left: 40px; top: 388px; height: 30px;
+    background: #1F2632; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    display: flex; align-items: center; padding: 0 12px; gap: 8px;
+    font-size: 11.5px; color: #E7EAF0; opacity: 0; white-space: nowrap;
+  }
+  #footchip .prompt { color: #556078; }
+  #fcaret { display: inline-block; width: 6px; height: 12px; background: #F2A33C; }
+  #exit4 {
+    padding: 2px 8px; border-radius: 99px; font-size: 10.5px; font-weight: 700;
+    border: 1px solid rgba(224,82,82,0.7); color: #E08787; opacity: 0; white-space: nowrap;
+  }
+
+  #dim { position: absolute; inset: 0; background: #171C26; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <div id="chrome">
+    <div class="light" style="background:#FF5F57"></div>
+    <div class="light" style="background:#FEBC2E"></div>
+    <div class="light" style="background:#28C840; margin-right:0"></div>
+    <div id="filechip"><span class="dot"></span>draft.md</div>
+    <div id="wordmark">Tether MD</div>
+  </div>
+
+  <div id="page">
+    <h1>Why local-first note apps keep losing my trust</h1>
+    <p id="para">I think the fix is boring: keep the document as the<span id="ins"></span><span class="ecaret" id="ecaret1"></span> source of truth, and make every clever feature live inside it or leave no trace. <span id="delWrap"><span id="anchor"></span><span class="ecaret" id="ecaret2"></span><span id="tail"> every platform shift.</span></span><span id="rest"> Databases survive until the next funding round.</span></p>
+  </div>
+
+  <svg id="leader"><path id="leaderPath" d=""/></svg>
+  <div id="marker"></div>
+
+  <div id="card">
+    <div id="cardhead"><div class="avatar"><span>Y</span></div><span class="who">you</span><span>&middot;</span><span>fact</span><span id="pill"></span></div>
+    <div id="cbody">back this with an example</div>
+  </div>
+
+  <div class="caption" id="cap1">edits elsewhere: <b>the comment follows its text</b></div>
+  <div class="caption" id="cap2">the phrase changed: <b>flagged, Accept refuses until re-confirmed</b></div>
+  <div class="caption" id="cap3">the phrase is gone: <b>loud error, never a wrong guess</b></div>
+
+  <div id="footchip" class="mono"><span class="prompt">$</span><span id="fcmd"></span><span id="fcaret"></span><span id="exit4">exit 4</span></div>
+
+  <div id="dim"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var page = $('page'), chrome_ = $('chrome'), card = $('card'), pill = $('pill'),
+      anchor = $('anchor'), ins = $('ins'), delWrap = $('delWrap'),
+      ecaret1 = $('ecaret1'), ecaret2 = $('ecaret2'),
+      leaderPath = $('leaderPath'), leaderSvg = $('leader'), marker = $('marker'),
+      cap1 = $('cap1'), cap2 = $('cap2'), cap3 = $('cap3'),
+      footchip = $('footchip'), fcmd = $('fcmd'), fcaret = $('fcaret'), exit4 = $('exit4'),
+      dim = $('dim');
+
+  var PHRASE_OLD = 'Plain files survive';
+  var PHRASE_NEW = 'Flat documents mostly survive';
+  var INSERT = ' single';
+  var FCMD = ' tether status --check';
+
+  /* ---------- easing ---------- */
+  function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function lin(x) { return x; }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function backOut(x) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }
+  function seg(t, a, b, fn) { return (fn || easeOut)(clamp01((t - a) / (b - a))); }
+
+  /* ---------- static geometry (card position fixed at load) ---------- */
+  var G = {};
+  function measure() {
+    anchor.textContent = PHRASE_OLD;
+    var r = anchor.getBoundingClientRect();
+    G.cardTop = r.top + r.height / 2 - 20;
+    card.style.top = G.cardTop + 'px';
+    G.cardLeft = card.getBoundingClientRect().left;
+  }
+
+  /* pill states */
+  function setPill(state) {
+    if (state === 'anchored') {
+      pill.textContent = 'anchored';
+      pill.style.background = 'transparent';
+      pill.style.border = '1px solid #556078';
+      pill.style.color = '#8A94AA';
+    } else if (state === 'review') {
+      pill.textContent = 'needs review';
+      pill.style.background = '#F2A33C';
+      pill.style.border = '1px solid #F2A33C';
+      pill.style.color = '#171C26';
+    } else {
+      pill.textContent = 'orphaned';
+      pill.style.background = 'transparent';
+      pill.style.border = '1px solid rgba(224,82,82,0.7)';
+      pill.style.color = '#E08787';
+    }
+  }
+
+  /* ---------- the pure timeline (13s) ---------- */
+  window.seek = function (t) {
+
+    /* page + card settle in */
+    var p1 = seg(t, 0, 700);
+    page.style.opacity = p1;
+    page.style.transform = 'translateY(' + (1 - p1) * 14 + 'px) scale(' + (0.975 + 0.025 * p1) + ')';
+    chrome_.style.opacity = seg(t, 0, 500);
+    var e1 = seg(t, 300, 750);
+    card.style.opacity = e1;
+    card.style.transform = 'translateX(' + (1 - e1) * 26 + 'px)';
+
+    /* ── text state ── */
+    /* edit 1: insert " single" elsewhere (2300–3400) */
+    var nIns = Math.round(seg(t, 2300, 3400, lin) * INSERT.length);
+    ins.textContent = INSERT.slice(0, nIns);
+    ecaret1.style.width = (t >= 2050 && t < 3650) ? '2px' : '0px';
+    ecaret1.style.opacity = (t >= 2050 && t < 3650 && (t % 700) < 440) ? 1 : 0;
+
+    /* edit 2: reword the anchored phrase (backspace 5400–6300, retype 6400–7600) */
+    var phrase;
+    if (t < 5400) phrase = PHRASE_OLD;
+    else if (t < 6400) phrase = PHRASE_OLD.slice(0, Math.round((1 - seg(t, 5400, 6300, lin)) * PHRASE_OLD.length));
+    else phrase = PHRASE_NEW.slice(0, Math.round(seg(t, 6400, 7600, lin) * PHRASE_NEW.length));
+    anchor.textContent = phrase;
+    ecaret2.style.width = (t >= 5250 && t < 7800) ? '2px' : '0px';
+    ecaret2.style.opacity = (t >= 5250 && t < 7800 && (t % 700) < 440) ? 1 : 0;
+
+    /* edit 3: delete the whole sentence (selection 8700–9100, gone at 9350) */
+    var selP = seg(t, 8700, 9100, easeInOut);
+    var deleted = t >= 9350;
+    delWrap.style.display = deleted ? 'none' : 'inline';
+    delWrap.style.backgroundColor = 'rgba(224,82,82,' + (0.28 * selP * (deleted ? 0 : 1)).toFixed(3) + ')';
+
+    /* ── highlight styling on the anchor ── */
+    var hlIn = seg(t, 400, 900);
+    var flagged = seg(t, 7600, 7950);          /* solid amber → dashed underline */
+    anchor.style.backgroundColor = 'rgba(242,163,60,' + (0.4 * hlIn * (1 - flagged)).toFixed(3) + ')';
+    anchor.style.borderBottom = '2px dashed rgba(242,163,60,' + flagged.toFixed(3) + ')';
+
+    /* ── gutter marker + leader: track the anchor's line every frame.
+       The marker sits just outside the page edge at the height of the line
+       where the phrase ends, so the leader never crosses document text. ── */
+    var rects = anchor.getClientRects();
+    if (rects.length > 0 && !deleted) {
+      var r = rects[rects.length - 1];
+      var my = r.top + r.height / 2;
+      var mIn = seg(t, 400, 900);
+      var mPulse = Math.sin(clamp01((t - 3700) / 600) * Math.PI);
+      marker.style.left = '624px';
+      marker.style.top = (my - 4) + 'px';
+      marker.style.opacity = mIn;
+      marker.style.transform = 'scale(' + (1 + 0.5 * mPulse) + ')';
+      var x0 = 632, y0 = my;
+      var x1 = G.cardLeft - 2, y1 = G.cardTop + 20;
+      leaderPath.setAttribute('d',
+        'M ' + x0 + ' ' + y0 +
+        ' C ' + (x0 + (x1 - x0) * 0.5) + ' ' + y0 + ', ' +
+                (x0 + (x1 - x0) * 0.5) + ' ' + y1 + ', ' +
+                x1 + ' ' + y1);
+      var len = leaderPath.getTotalLength();
+      leaderPath.style.strokeDasharray = len;
+      leaderPath.style.strokeDashoffset = len * (1 - seg(t, 500, 1050, easeInOut));
+      leaderSvg.style.opacity = 0.85;
+    } else {
+      leaderSvg.style.opacity = 0;
+      marker.style.opacity = 0;
+    }
+
+    /* ── pill state + pulse ── */
+    if (t < 7700) setPill('anchored');
+    else if (t < 9500) setPill('review');
+    else setPill('orphaned');
+    /* tiny ✓ pulse while the comment survives the nearby edit */
+    var pulse = Math.sin(clamp01((t - 3700) / 600) * Math.PI);
+    if (t >= 3700 && t < 4300) {
+      pill.style.borderColor = '#F2A33C';
+      pill.style.color = '#F2A33C';
+    }
+    var flip1 = (t >= 7700 && t < 7900) ? Math.sin(seg(t, 7700, 7900, lin) * Math.PI) : 0;
+    var flip2 = (t >= 9500 && t < 9700) ? Math.sin(seg(t, 9500, 9700, lin) * Math.PI) : 0;
+    pill.style.transform = 'scale(' + (1 + 0.12 * pulse + 0.12 * flip1 + 0.12 * flip2) + ')';
+
+    /* card turns muted-red in orphaned state */
+    card.style.borderColor = t >= 9500 ? 'rgba(224,82,82,0.4)' : 'rgba(255,255,255,0.08)';
+
+    /* ── captions ── */
+    cap1.style.opacity = Math.min(seg(t, 2000, 2350), 1 - seg(t, 4900, 5250));
+    cap2.style.opacity = Math.min(seg(t, 5300, 5650), 1 - seg(t, 8500, 8850));
+    cap3.style.opacity = seg(t, 9400, 9750);
+
+    /* ── footer chip: tether status --check → exit 4 ── */
+    footchip.style.opacity = seg(t, 9300, 9650);
+    var nF = Math.round(seg(t, 9500, 10700, lin) * FCMD.length);
+    fcmd.textContent = FCMD.slice(0, nF);
+    fcaret.style.opacity = (t >= 9500 && t < 10850 && (t % 700) < 440) ? 1 : 0;
+    var ex = seg(t, 10950, 11300, backOut);
+    exit4.style.opacity = t >= 10950 ? Math.min(1, ex * 1.5) : 0;
+    exit4.style.transform = 'scale(' + (0.7 + 0.3 * ex) + ')';
+
+    /* ── end dim ── */
+    dim.style.opacity = 0.14 * seg(t, 12100, 12800, easeInOut);
+  };
+
+  measure();
+  window.seek(0);
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

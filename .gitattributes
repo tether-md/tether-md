@@ -1,0 +1,6 @@
+# Tether stores are LF-only by grammar; keep every text file LF in working trees
+# so a Windows checkout can never hand the kernel a CRLF store block.
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.vsix binary
