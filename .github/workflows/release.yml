@@ -33,8 +33,24 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
-      - run: npm publish --provenance -w @tether-md/kernel
-      - run: npm publish --provenance -w tether-md
+      # Skip-if-published makes a partially failed release safe to re-tag: steps whose
+      # version already reached the registry no-op instead of failing the whole job.
+      - name: Publish @tether-md/kernel
+        run: |
+          V=$(node -p "require('./packages/kernel/package.json').version")
+          if npm view "@tether-md/kernel@$V" version >/dev/null 2>&1; then
+            echo "@tether-md/kernel@$V already on the registry; skipping"
+          else
+            npm publish --provenance -w @tether-md/kernel
+          fi
+      - name: Publish tether-md
+        run: |
+          V=$(node -p "require('./packages/cli/package.json').version")
+          if npm view "tether-md@$V" version >/dev/null 2>&1; then
+            echo "tether-md@$V already on the registry; skipping"
+          else
+            npm publish --provenance -w tether-md
+          fi
       - run: npm run package
         working-directory: packages/vscode-ext
       - run: npx @vscode/vsce publish --packagePath packages/vscode-ext/tether-md.vsix --no-dependencies
