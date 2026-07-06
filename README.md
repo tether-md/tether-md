@@ -16,7 +16,7 @@ You comment. The agent proposes. You decide.
 
 ---
 
-Most AI writing surfaces either rewrite your document under you (chat canvases, "apply" buttons) or lock review into a platform (Google Docs, Word, Notion). If you write Markdown in git, there is no suggest mode: no way to leave a comment on a phrase, have an AI act on it, and approve or reject each change yourself.
+Most AI writing surfaces either rewrite your document under you (chat canvases, "apply" buttons) or lock review into a platform (Google Docs, Word, Notion). Markdown in git has no standard suggest mode: a way to leave a comment on a phrase, have an AI act on it, and approve or reject each change yourself.
 
 Tether MD is that layer: anchored comments for Markdown that AI agents act on, but never apply. It is a file format rather than a platform.
 
@@ -41,7 +41,7 @@ tether comment accept draft.md <id> --write  # apply it and clear the comment
 tether export draft.md                       # the authored prose, byte-identical
 ```
 
-Every mutating command prints its result by default and only edits in place with `--write` (atomically). Everything speaks `--json`, with stable exit codes:
+Every mutating command prints its result by default, only edits in place with `--write` (atomically), and takes `--json`; `comment list` and error envelopes are JSON already. Exit codes are stable:
 
 | code | meaning |
 |---|---|
@@ -109,13 +109,13 @@ A weak match downgrades to `needs-review` or orphans loudly; it does not silentl
 <img src="docs/assets/anchors.gif" alt="A comment follows its text through edits, gets flagged when its phrase is reworded, and orphans loudly when the phrase is deleted" width="800">
 </div>
 
-Matching tries the exact phrase first, disambiguates duplicates by their surrounding context, and only then falls back to fuzzy matching, which is where the score comes from (details in the [spec](docs/spec/wire-format-and-projection.md)). One extra safeguard on top: accepting a proposal requires the anchored text to still read exactly as it did when the proposal was made, so a stale suggestion can never overwrite words you wrote afterwards.
+Matching tries the exact phrase first, disambiguates duplicates by their surrounding context, and only then falls back to fuzzy matching, which is where the score comes from (details in the [spec](docs/spec/wire-format-and-projection.md)). One extra safeguard on top: accepting a proposal requires the anchored text to still read exactly as it did when the proposal was made, so a stale suggestion can never splice onto changed wording.
 
 ## The three invariants
 
 Everything above reduces to three properties, tested on every commit:
 
-1. **Re-anchor or orphan.** After any edit, every comment re-anchors above the confidence floor or orphans loudly. Never silently mis-attached.
+1. **Re-anchor or orphan.** After any edit, every comment re-anchors above the confidence floor or orphans loudly. Weak matches are never silent.
 2. **Zero perturbation.** Adding or removing a comment never changes the exported prose or any other comment's anchor.
 3. **Export identity.** `tether export` is byte-for-byte the authored prose.
 
@@ -126,13 +126,13 @@ Everything above reduces to three properties, tested on every commit:
 | Tether MD | yes | fuzzy, loud orphans | native threads / CLI | CLI + MCP + skill | byte-identical, in CI |
 | Google Docs / Word / Notion | no (platform DB) | yes | their AI only | no | export differs from source |
 | GitHub PR suggestions | no (PR thread) | no (stale on rebase) | in the PR UI | PR-bound bots | n/a (reviews a diff, not the doc) |
-| CriticMarkup | yes (visible syntax) | no (positional) | no | no | processor-dependent |
+| CriticMarkup | yes (visible syntax) | inline, no drift detection | no native flow | format only | processor-dependent |
 | Cursor / chat canvases | no (session diff) | — | until the session ends | no | — |
-| Web review apps (roughdraft, …) | no (their store) | partial | in their UI | no | partial |
+| Roughdraft | yes (CriticMarkup) | inline, no drift detection | in its local web UI | yes (CLI) | not spec'd or CI-tested |
 
 The bet: suggest mode should be a property of the document, not of an app. That is also why the wire format is specified independently of this implementation; ports are welcome.
 
-Why not CriticMarkup? Its syntax is visible noise in every renderer until resolved, and its positional anchors do not survive editing; Tether's markers hide in rendered views and re-anchor by quoted text. Why not PR review? Suggestions there attach to diff lines in a forge's database, need a remote and a pull request, and go stale on rebase; here the document itself carries the review, offline, in any repo state. CriticMarkup import/export is on the roadmap for interop.
+Why not CriticMarkup? Its syntax is visible noise in any CriticMarkup-unaware renderer (GitHub included), and its comments bind only by adjacency: nothing detects when the prose they were about is rewritten. Tether's markers hide in rendered views and re-anchor by quoted text. Why not PR review? Suggestions there attach to diff lines in a forge's database, need a remote and a pull request, and go stale on rebase; here the document itself carries the review, offline, in any repo state.
 
 ## Monorepo
 

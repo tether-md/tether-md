@@ -16,7 +16,7 @@ Spec: [wire-format-and-projection.md](https://github.com/tether-md/tether-md/blo
 
 Tested in [`test/invariants.test.ts`](https://github.com/tether-md/tether-md/blob/main/packages/kernel/test/invariants.test.ts) and the property suite ([`test/properties.test.ts`](https://github.com/tether-md/tether-md/blob/main/packages/kernel/test/properties.test.ts)), enforced in CI:
 
-1. **Re-anchor or orphan.** Any prose edit → every comment re-anchors with confidence ≥ 0.50 or is marked `orphaned`. Never silently mis-attached.
+1. **Re-anchor or orphan.** Any prose edit → every comment re-anchors with confidence ≥ 0.50 or is marked `orphaned`. Weak matches are never silent.
 2. **Zero perturbation.** Adding/removing a comment leaves `P(raw).clean` byte-identical and every other anchor unchanged.
 3. **Export identity.** `P(raw).clean` is byte-for-byte the authored prose; the full round-trip is the identity on prose.
 
