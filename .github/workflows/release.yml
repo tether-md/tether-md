@@ -2,9 +2,10 @@
 #   1. Bump versions in packages/*/package.json (kernel, cli, vscode-ext in lockstep).
 #   2. Commit, then tag and push: git tag vX.Y.Z && git push origin vX.Y.Z
 #   3. This workflow publishes @tether-md/kernel and tether-md to npm (trusted
-#      publishing via OIDC — no npm token), the extension to the VS Code
-#      Marketplace and Open VSX, and creates a GitHub release with the .vsix.
-# Required repo secrets: VSCE_PAT (VS Code Marketplace), OVSX_PAT (Open VSX).
+#      publishing via OIDC — no npm token) and creates a GitHub release with
+#      the .vsix attached.
+# Optional repo secrets: VSCE_PAT (VS Code Marketplace), OVSX_PAT (Open VSX).
+# The marketplace publish steps are skipped when a secret is not configured.
 name: Release
 
 on:
@@ -18,6 +19,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -34,9 +38,9 @@ jobs:
       - run: npm run package
         working-directory: packages/vscode-ext
       - run: npx @vscode/vsce publish --packagePath packages/vscode-ext/tether-md.vsix --no-dependencies
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-      - run: npx ovsx publish packages/vscode-ext/tether-md.vsix -p ${{ secrets.OVSX_PAT }}
+        if: env.VSCE_PAT != ''
+      - run: npx ovsx publish packages/vscode-ext/tether-md.vsix -p "$OVSX_PAT"
+        if: env.OVSX_PAT != ''
       - uses: softprops/action-gh-release@v3
         with:
           files: packages/vscode-ext/tether-md.vsix

@@ -69,7 +69,7 @@ The working loop becomes: comment on phrases, tell the agent to "address my comm
 
 ## In VS Code
 
-Install Tether MD from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=tether-md.tether-md-vscode) or [Open VSX](https://open-vsx.org/extension/tether-md/tether-md-vscode). Alternatively, grab `tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases) or build it from a clone (`npm install && npm run build && npm run package -w tether-md-vscode`). Then:
+Install the extension: download `tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases), then in VS Code open the Extensions panel and pick Install from VSIX from its `⋯` menu. Or build it from a clone (`npm install && npm run build && npm run package -w tether-md-vscode`). Then:
 
 - select prose, press <kbd>⌘⌥C</kbd> (<kbd>Ctrl+Alt+C</kbd> on Windows/Linux), type your comment; it renders as a native inline thread
 - agent proposals appear in the thread as a diff (current vs. proposed) with Accept and Reject buttons
