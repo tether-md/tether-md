@@ -37,7 +37,7 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - run: npx ovsx publish packages/vscode-ext/tether-md.vsix -p ${{ secrets.OVSX_PAT }}
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: packages/vscode-ext/tether-md.vsix
           generate_release_notes: true
