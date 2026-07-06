@@ -18,7 +18,7 @@ The same loop, live at the command line:
 ## Walk the loop yourself
 
 ```sh
-npm i -g tether-md        # or: npx tether-md, or node packages/cli/dist/cli.js from a clone
+npm i -g tether-md        # or npx tether-md; from a clone, npm install && npm run build first
 cp reviewed.md play.md
 ```
 

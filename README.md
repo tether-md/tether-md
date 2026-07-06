@@ -16,7 +16,7 @@ You comment. The agent proposes. You decide.
 
 ---
 
-Every AI writing surface today either rewrites your document under you (chat canvases, "apply" buttons) or locks review into a platform (Google Docs, Word, Notion). If you write Markdown in git, there is no suggest mode: no way to leave a comment on a phrase, have an AI act on it, and approve or reject each change yourself.
+Most AI writing surfaces either rewrite your document under you (chat canvases, "apply" buttons) or lock review into a platform (Google Docs, Word, Notion). If you write Markdown in git, there is no suggest mode: no way to leave a comment on a phrase, have an AI act on it, and approve or reject each change yourself.
 
 Tether MD is that layer: anchored comments for Markdown that AI agents act on, but never apply. It is a file format rather than a platform.
 
@@ -32,6 +32,7 @@ npm i -g tether-md
 ```
 
 ```sh
+printf 'A draft with some exact phrase in it.\n' > draft.md
 tether comment add draft.md --quote "some exact phrase" --body "tighten this" --write
 tether status draft.md                       # comments, proposals, anchor health
 tether comment suggest draft.md <id> --to "a tighter version" --write   # the agent's move (or yours)
@@ -50,7 +51,7 @@ Every mutating command prints its result by default and only edits in place with
 | 3 | IO error |
 | 4 | check failed (`status --check`) |
 
-Try it on a real document in 30 seconds: [`examples/`](examples/) ships a worked walkthrough.
+Try it on a real document in 30 seconds: [`examples/`](examples/) ships a worked walkthrough, including the one-line proof of the export guarantee (`tether export reviewed.md | diff - draft.md` prints nothing: byte-identical).
 
 ## Hook up your agent
 
@@ -68,7 +69,7 @@ The working loop becomes: comment on phrases, tell the agent to "address my comm
 
 ## In VS Code
 
-Install the extension (`tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases), or build it from a clone: `npm install && npm run build && npm run package -w tether-md-vscode`):
+Install Tether MD from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=tether-md.tether-md-vscode) or [Open VSX](https://open-vsx.org/extension/tether-md/tether-md-vscode). Alternatively, grab `tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases) or build it from a clone (`npm install && npm run build && npm run package -w tether-md-vscode`). Then:
 
 - select prose, press <kbd>⌘⌥C</kbd> (<kbd>Ctrl+Alt+C</kbd> on Windows/Linux), type your comment; it renders as a native inline thread
 - agent proposals appear in the thread as a diff (current vs. proposed) with Accept and Reject buttons
@@ -90,7 +91,7 @@ next funding round.
 tether:store-->
 ```
 
-One caret marker per comment (a ULID, which can never form the `--` sequence HTML comments forbid), and all data in one JSONL store block at the end of the file, escaped to stay grammar-legal. Renderers hide HTML comments, so the raw file previews clean everywhere. The grammar, the projection algorithm, the selector model, and the re-anchoring confidence bands are specified in [`docs/spec/wire-format-and-projection.md`](docs/spec/wire-format-and-projection.md). The spec is the product; the TypeScript here is the reference implementation.
+One caret marker per comment (a ULID, which can never form the `--` sequence HTML comments forbid), and all data in one JSONL store block at the end of the file, escaped to stay grammar-legal. Renderers hide HTML comments, so the raw file previews clean on GitHub, in VS Code preview, and through pandoc. The grammar, the projection algorithm, the selector model, and the re-anchoring confidence bands are specified in [`docs/spec/wire-format-and-projection.md`](docs/spec/wire-format-and-projection.md). The spec is the product; the TypeScript here is the reference implementation.
 
 ## What happens when you edit the text
 
@@ -102,7 +103,7 @@ A comment points at a phrase, and you keep editing the document. Each time the f
 | `needs-review` | the phrase changed enough to blur the match (0.50–0.75) | a dashed warning underline and a diagnostic; Accept refuses until you re-confirm |
 | orphaned | the phrase is effectively gone (below 0.50) | a loud error; `tether status --check` exits 4, so CI can catch it |
 
-A comment is never silently attached to the wrong words.
+A weak match downgrades to `needs-review` or orphans loudly; it does not silently attach to the wrong words.
 
 <div align="center">
 <img src="docs/assets/anchors.gif" alt="A comment follows its text through edits, gets flagged when its phrase is reworded, and orphans loudly when the phrase is deleted" width="800">
@@ -124,11 +125,14 @@ Everything above reduces to three properties, tested on every commit:
 |---|---|---|---|---|---|
 | Tether MD | yes | fuzzy, loud orphans | native threads / CLI | CLI + MCP + skill | byte-identical, in CI |
 | Google Docs / Word / Notion | no (platform DB) | yes | their AI only | no | export differs from source |
+| GitHub PR suggestions | no (PR thread) | no (stale on rebase) | in the PR UI | PR-bound bots | n/a (reviews a diff, not the doc) |
 | CriticMarkup | yes (visible syntax) | no (positional) | no | no | processor-dependent |
 | Cursor / chat canvases | no (session diff) | — | until the session ends | no | — |
 | Web review apps (roughdraft, …) | no (their store) | partial | in their UI | no | partial |
 
 The bet: suggest mode should be a property of the document, not of an app. That is also why the wire format is specified independently of this implementation; ports are welcome.
+
+Why not CriticMarkup? Its syntax is visible noise in every renderer until resolved, and its positional anchors do not survive editing; Tether's markers hide in rendered views and re-anchor by quoted text. Why not PR review? Suggestions there attach to diff lines in a forge's database, need a remote and a pull request, and go stale on rebase; here the document itself carries the review, offline, in any repo state. CriticMarkup import/export is on the roadmap for interop.
 
 ## Monorepo
 

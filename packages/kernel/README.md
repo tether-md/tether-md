@@ -14,7 +14,7 @@ Spec: [wire-format-and-projection.md](https://github.com/tether-md/tether-md/blo
 
 ## The three invariants (the contract everything else builds on)
 
-Proven in [`test/invariants.test.ts`](https://github.com/tether-md/tether-md/blob/main/packages/kernel/test/invariants.test.ts), enforced in CI:
+Tested in [`test/invariants.test.ts`](https://github.com/tether-md/tether-md/blob/main/packages/kernel/test/invariants.test.ts) and the property suite ([`test/properties.test.ts`](https://github.com/tether-md/tether-md/blob/main/packages/kernel/test/properties.test.ts)), enforced in CI:
 
 1. **Re-anchor or orphan.** Any prose edit → every comment re-anchors with confidence ≥ 0.50 or is marked `orphaned`. Never silently mis-attached.
 2. **Zero perturbation.** Adding/removing a comment leaves `P(raw).clean` byte-identical and every other anchor unchanged.
