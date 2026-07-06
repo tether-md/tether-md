@@ -60,8 +60,6 @@ jobs:
   links:
     name: markdown links
     runs-on: ubuntu-latest
-    # Repo URLs are dead until the repo is public — remove continue-on-error after launch.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: lycheeverse/lychee-action@v2
