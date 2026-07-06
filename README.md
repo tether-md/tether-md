@@ -61,7 +61,18 @@ Any MCP-capable agent (Claude Code, Cursor, Codex CLI, and others):
 claude mcp add tether -- tether mcp
 ```
 
-The MCP server exposes `tether_list`, `tether_status`, `tether_diff`, `tether_suggest`, `tether_comment` (flag-backs), and `tether_export`. It deliberately omits accept, reject, and edit: the trust boundary is enforced at the tool surface, not by prompt etiquette.
+The MCP server exposes `tether_list`, `tether_status`, `tether_diff`, `tether_suggest`, `tether_comment` (flag-backs), and `tether_export`. It deliberately omits accept, reject, and edit, and its server instructions tell every connected agent to stay on that surface. Within it, the trust boundary is structural, not prompt etiquette.
+
+One caveat that matters: most coding agents (Claude Code, Cursor, and friends) also carry their own file tools, and no file format can gate those. An agent that has never been told the contract will treat a Tether file like any other markdown and edit it in place. So tell it: install the skill below, or add this to your project's `AGENTS.md` or `CLAUDE.md`:
+
+```
+Markdown files here may contain tether-md comments: invisible <!--tether:...-->
+markers plus a store block at EOF. Never edit these files directly; never touch
+the markers or the store block. Read the threads with `tether comment list`,
+propose rewrites with `tether comment suggest <file> <id> --to "..." --write`,
+flag concerns with `tether comment add <file> --quote "..." --body "..."
+--author agent --write`. Accept, reject, and export belong to the human.
+```
 
 For Claude Code there is also a full skill, [`skills/tether-edit/SKILL.md`](skills/tether-edit/SKILL.md). It teaches the contract end to end: read the document, read the comments, propose per instruction, flag back anything that can't be grounded, hand control back. The agent never applies, resolves, or exports.
 
@@ -152,6 +163,7 @@ npm install && npm run build && npm test
 ## Limitations (v0.1)
 
 - Editor UI is VS Code-only today. The kernel is editor-agnostic; Obsidian and nvim ports are the most-wanted contributions.
+- The propose-not-apply contract is structural on the MCP surface, but an agent with its own file tools follows it only once it has the skill or the `AGENTS.md` note above. An untold agent edits the file like any other markdown.
 - Store blocks are LF-only by grammar. CRLF hard-fails loudly rather than mis-parsing; the repo's `.gitattributes` protects checkouts, and tolerant reads are tracked.
 - One store block per file; concurrent writers race at the file level. Treat the raw file like source code (git merges the store poorly).
 - A comment anchored inside a code region relocates its marker to just before that region. Two pathological shapes are rejected with clear errors.

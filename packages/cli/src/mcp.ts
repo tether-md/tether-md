@@ -80,9 +80,19 @@ export const tools = {
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }] });
 
+/** Server-level guidance every connected client receives at initialization. Agents with
+ * their own file tools sit outside the tool surface, so the contract must be said, not
+ * only shaped — this is the one channel that reaches every MCP client. */
+export const SERVER_INSTRUCTIONS =
+  "Tether-managed markdown files carry invisible <!--tether:...--> markers and a store block at EOF. " +
+  "Never edit such a file with your own file tools: direct edits bypass the human's review and can corrupt markers. " +
+  "Read the prose with tether_export (not the raw file), read the threads with tether_list, propose rewrites with " +
+  "tether_suggest, and raise concerns with tether_comment. Accepting, rejecting, and editing belong to the human; " +
+  "those tools are deliberately absent.";
+
 /** Build the server (exported so tests can drive it over an in-memory transport). */
 export function createMcpServer(): McpServer {
-  const server = new McpServer({ name: "tether-md", version: VERSION });
+  const server = new McpServer({ name: "tether-md", version: VERSION }, { instructions: SERVER_INSTRUCTIONS });
 
   server.registerTool(
     "tether_list",
@@ -143,7 +153,8 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     "tether_export",
     {
-      description: "Print the clean document (comment layer stripped; byte-identical to the authored prose).",
+      description:
+        "Print the clean document (comment layer stripped; byte-identical to the authored prose). Use this to read the prose instead of opening the raw file.",
       inputSchema: { file: z.string().describe("Path to the Tether .md file") },
     },
     ({ file }) => text(tools.export({ file })),

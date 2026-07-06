@@ -91,6 +91,9 @@ describe("MCP server round-trip (in-memory transport)", () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
+    // The contract is also SAID, not only shaped: server instructions reach every client.
+    expect(client.getInstructions()).toContain("Never edit such a file with your own file tools");
+
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual(["tether_comment", "tether_diff", "tether_export", "tether_list", "tether_status", "tether_suggest"]);
     // The trust boundary: applying is the human's — none of these may ever appear.

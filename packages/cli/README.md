@@ -70,7 +70,7 @@ Generic `mcpServers` config:
 | `tether_comment {file, quote, body, trust?}` | Flag something back: author is forced to `agent`, trust defaults to `interpretation`. |
 | `tether_export {file}` | The clean document text. |
 
-**The trust boundary, expressed at the tool surface:** `accept`, `reject`, `resolve`, `remove`, and `edit` are deliberately not exposed. Over MCP the agent can read, propose, and flag back, but never apply. Accepting or rejecting a proposal stays a human action (in the editor, or an explicit CLI call under human hands).
+**The trust boundary, expressed at the tool surface:** `accept`, `reject`, `resolve`, `remove`, and `edit` are deliberately not exposed, and the server's instructions tell connected agents to stay on this surface. Over MCP the agent can read, propose, and flag back, but never apply. Accepting or rejecting a proposal stays a human action (in the editor, or an explicit CLI call under human hands). Note the scope: an agent that also carries its own file tools can still edit the raw file; pair the server with the [tether-edit skill](https://github.com/tether-md/tether-md/blob/main/skills/tether-edit/SKILL.md) or the `AGENTS.md` note from the [root README](https://github.com/tether-md/tether-md#hook-up-your-agent) so those tools honor the contract too.
 
 ## Deferred
 
