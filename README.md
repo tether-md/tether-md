@@ -55,7 +55,14 @@ Try it on a real document in 30 seconds: [`examples/`](examples/) ships a worked
 
 ## Hook up your agent
 
-Any MCP-capable agent (Claude Code, Cursor, Codex CLI, and others):
+One command, in your project:
+
+```sh
+tether init            # .mcp.json (project-scoped MCP server) + AGENTS.md contract note
+tether init --skill    # also installs the Claude Code skill into .claude/skills
+```
+
+Claude Code discovers `.mcp.json` on its own the next time the project opens, and `AGENTS.md` carries the contract for agents that bring their own file tools. Both writes are idempotent and merge into existing files. To wire the MCP server by hand instead, any MCP-capable agent works (Claude Code, Cursor, Codex CLI, and others):
 
 ```sh
 claude mcp add tether -- tether mcp
@@ -63,7 +70,7 @@ claude mcp add tether -- tether mcp
 
 The MCP server exposes `tether_list`, `tether_status`, `tether_diff`, `tether_suggest`, `tether_comment` (flag-backs), and `tether_export`. It deliberately omits accept, reject, and edit, and its server instructions tell every connected agent to stay on that surface. Within it, the trust boundary is structural, not prompt etiquette.
 
-One caveat that matters: most coding agents (Claude Code, Cursor, and friends) also carry their own file tools, and no file format can gate those. An agent that has never been told the contract will treat a Tether file like any other markdown and edit it in place. So tell it: install the skill below, or add this to your project's `AGENTS.md` or `CLAUDE.md`:
+One caveat that matters: most coding agents (Claude Code, Cursor, and friends) also carry their own file tools, and no file format can gate those. An agent that has never been told the contract will treat a Tether file like any other markdown and edit it in place. So tell it: run `tether init`, install the skill below, or add this to your project's `AGENTS.md` or `CLAUDE.md`:
 
 ```
 Markdown files here may contain tether-md comments: invisible <!--tether:...-->

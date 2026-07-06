@@ -339,3 +339,29 @@ describe("comment list filters (built binary)", () => {
     expect(r.stderr).toMatch(/invalid --status/);
   });
 });
+
+describe("tether init (built binary)", () => {
+  it("sets up a fresh project and is idempotent, with a --json envelope", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tether-e2e-init-"));
+    const first = execFileSync("node", [cli, "init", dir, "--skill", "--json"], { encoding: "utf8" });
+    const envelope = JSON.parse(first);
+    expect(envelope.ok).toBe(true);
+    expect(envelope.results.map((r: { action: string }) => r.action)).toEqual(["wrote", "wrote", "wrote"]);
+
+    const mcp = JSON.parse(readFileSync(join(dir, ".mcp.json"), "utf8"));
+    expect(mcp.mcpServers.tether).toEqual({ command: "tether", args: ["mcp"] });
+    expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toContain("tether-md comments");
+    expect(readFileSync(join(dir, ".claude", "skills", "tether-edit", "SKILL.md"), "utf8")).toContain("tether");
+
+    const again = JSON.parse(execFileSync("node", [cli, "init", dir, "--skill", "--json"], { encoding: "utf8" }));
+    expect(again.results.map((r: { action: string }) => r.action)).toEqual(["unchanged", "unchanged", "unchanged"]);
+  });
+
+  it("invalid .mcp.json exits 3 with a pointed message", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tether-e2e-init-"));
+    writeFileSync(join(dir, ".mcp.json"), "{nope");
+    const r = spawnSync("node", [cli, "init", dir], { encoding: "utf8" });
+    expect(r.status).toBe(3);
+    expect(r.stderr).toMatch(/not valid JSON/);
+  });
+});

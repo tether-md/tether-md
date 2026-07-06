@@ -12,6 +12,7 @@ import { readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { project, StoreError, type Author, type Kind, type Status, type Trust } from "@tether-md/kernel";
+import { runInit } from "./init.js";
 import {
   formatDiff,
   formatStatus,
@@ -58,6 +59,7 @@ Usage:
   tether comment resolve <file> <id>   Mark a comment resolved.
   tether comment remove <file> <id>    Delete a comment (marker + record).
   tether mcp                           Run the MCP stdio server (agent-safe tools only).
+  tether init [dir] [--skill]          Set up a project for agents: .mcp.json + AGENTS.md note.
   tether --help | --version
 
 status options:
@@ -77,6 +79,10 @@ comment add options:
 comment list options:
   --status <s>[,<s>]                   Filter by record status (repeatable or comma-separated).
   --author <a> / --kind <k>            Filter by author / kind.
+
+init options:
+  --skill                              Also install the Claude Code skill into .claude/skills.
+  --json                               Print {ok:true, action:"init", results} on stdout.
 
 edit / suggest / accept / reject / resolve / remove options:
   --write                              Edit the file in place (default: print to stdout).
@@ -329,6 +335,33 @@ function editCommand(rest: string[]): void {
   }
 }
 
+/** `tether init [dir] [--skill] [--json]` — set up a project so agents get the contract. */
+function initCommand(rest: string[]): void {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: rest,
+      allowPositionals: true,
+      options: { skill: { type: "boolean", default: false }, json: { type: "boolean", default: false } },
+    });
+  } catch (err) {
+    return die(EXIT_USAGE, (err as Error).message);
+  }
+  const { values, positionals } = parsed;
+  const dir = positionals[0] ?? ".";
+
+  let results;
+  try {
+    results = runInit(dir, { skill: values.skill });
+  } catch (err) {
+    return die(EXIT_IO, `init: ${(err as Error).message}`);
+  }
+  for (const r of results) {
+    process.stderr.write(`tether: ${r.action} ${r.path}${r.note ? ` (${r.note})` : ""}\n`);
+  }
+  if (values.json) process.stdout.write(JSON.stringify({ ok: true, action: "init", results }) + "\n");
+}
+
 /** `tether status <file> [--json] [--check]`. */
 function statusCommand(rest: string[]): void {
   let parsed;
@@ -441,6 +474,8 @@ function main(argv: string[]): void {
     }
     case "status":
       return statusCommand(rest);
+    case "init":
+      return initCommand(rest);
     case "edit":
       return editCommand(rest);
     case "comment": {

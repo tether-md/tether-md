@@ -19,6 +19,7 @@ The thin, stable, file-only contract surface over [`@tether-md/kernel`](https://
 | `tether comment resolve <file> <id>` | Mark a comment resolved (status only; keeps the marker). |
 | `tether comment remove <file> <id>` | Delete a comment (marker + record). |
 | `tether mcp` | Run the MCP stdio server (agent-safe tools only; see below). |
+| `tether init [dir] [--skill]` | Set up a project for agents: `.mcp.json` (project-scoped MCP server) + an `AGENTS.md` contract note; `--skill` also installs the Claude Code skill into `.claude/skills/`. Idempotent: merges into existing files, never overwrites user content. |
 | `tether --help` / `--version` | Usage / version. |
 
 All mutating commands are non-destructive by default: they print the new document; pass `--write` to edit in place.
@@ -45,7 +46,7 @@ These are stable so agents and CI can branch on them.
 
 ## MCP server
 
-`tether mcp` serves the comment surface to any MCP-capable agent over stdio (server name `tether-md`). For Claude Code:
+`tether mcp` serves the comment surface to any MCP-capable agent over stdio (server name `tether-md`). The quick path is `tether init` in your project, which registers it in `.mcp.json` for you. By hand, for Claude Code:
 
 ```sh
 claude mcp add tether -- tether mcp
