@@ -1,6 +1,6 @@
 {
   "name": "@tether-md/kernel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The Tether MD projection kernel: anchored comments in Markdown, W3C-selector re-anchoring that survives edits, and a byte-identical clean export — P(raw) → clean.",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+No extension changes; version lockstep with `tether-md` 0.1.1 (which adds `tether init` and MCP server instructions).
+
 ## 0.1.0
 
 Initial release.

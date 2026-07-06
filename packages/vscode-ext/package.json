@@ -2,7 +2,7 @@
   "name": "tether-md-vscode",
   "private": true,
   "displayName": "Tether MD",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google-Docs-style anchored comments and AI suggestion review for Markdown — comments live in the file, survive edits, and export away byte-identically.",
   "publisher": "tether-md",
   "icon": "icon.png",
