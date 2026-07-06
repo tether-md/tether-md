@@ -62,6 +62,37 @@ describe("tether init", () => {
     expect(readFileSync(join(dir, ".mcp.json"), "utf8")).toBe("{not json");
   });
 
+  it("non-object mcpServers value: throws instead of corrupting the config", () => {
+    for (const bad of ['{"mcpServers": "oops"}', '{"mcpServers": [{"command": "x"}]}']) {
+      const dir = tmpProject();
+      writeFileSync(join(dir, ".mcp.json"), bad);
+      expect(() => runInit(dir)).toThrow(/non-object "mcpServers"/);
+      expect(readFileSync(join(dir, ".mcp.json"), "utf8")).toBe(bad);
+    }
+  });
+
+  it("BOM'd .mcp.json parses and merges", () => {
+    const dir = tmpProject();
+    writeFileSync(join(dir, ".mcp.json"), "\uFEFF" + JSON.stringify({ mcpServers: {} }));
+    const [mcp] = runInit(dir);
+    expect(mcp.action).toBe("updated");
+    expect(JSON.parse(readFileSync(join(dir, ".mcp.json"), "utf8")).mcpServers.tether).toEqual(MCP_SERVER_ENTRY);
+  });
+
+  it("a differing existing tether entry is kept, with a note", () => {
+    const dir = tmpProject();
+    const original = JSON.stringify({ mcpServers: { tether: { command: "custom" } } });
+    writeFileSync(join(dir, ".mcp.json"), original);
+    const [mcp] = runInit(dir);
+    expect(mcp.action).toBe("kept");
+    expect(mcp.note).toMatch(/differs/);
+    expect(readFileSync(join(dir, ".mcp.json"), "utf8")).toBe(original);
+  });
+
+  it("a nonexistent target directory throws a clear error", () => {
+    expect(() => runInit(join(tmpProject(), "no", "such", "dir"))).toThrow(/does not exist/);
+  });
+
   it("existing AGENTS.md without the note: appends, original content preserved", () => {
     const dir = tmpProject();
     writeFileSync(join(dir, "AGENTS.md"), "# Mine\n\nKeep this.\n");

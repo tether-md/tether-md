@@ -30,7 +30,7 @@ All mutating commands are non-destructive by default: they print the new documen
 
 ### `--json` envelopes (scripting)
 
-`edit`, `suggest`, `accept`, `reject`, `resolve`, `remove` accept `--json`: with `--write`, success prints one line `{"ok":true,"action":…,"id":…,"file":…}` to stdout (the human stderr note is kept); without `--write`, `{"ok":true,"action":…,"id":…,"raw":…}` where `raw` is the would-be document. Whenever `--json` was passed, any error prints one line `{"ok":false,"error":{"code":<exit code>,"message":…}}` to stderr; exit codes unchanged.
+`edit`, `suggest`, `accept`, `reject`, `resolve`, `remove` accept `--json`: with `--write`, success prints one line `{"ok":true,"action":…,"id":…,"file":…}` to stdout (the human stderr note is kept); without `--write`, `{"ok":true,"action":…,"id":…,"raw":…}` where `raw` is the would-be document. `init --json` prints `{"ok":true,"action":"init","results":[{path, action, note?}]}`. Whenever `--json` was passed, any error prints one line `{"ok":false,"error":{"code":<exit code>,"message":…}}` to stderr; exit codes unchanged.
 
 ## Exit codes (contract)
 

@@ -60,7 +60,8 @@ function initMcpJson(dir: string): InitResult {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
+    // Strip a UTF-8 BOM: Node's own require() tolerates BOM'd JSON, so we do too.
+    parsed = JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
   } catch (err) {
     throw new Error(`${path} is not valid JSON (${(err as Error).message}); fix or remove it and rerun`);
   }
@@ -68,8 +69,14 @@ function initMcpJson(dir: string): InitResult {
     throw new Error(`${path} is not a JSON object; fix or remove it and rerun`);
   }
   const config = parsed as { mcpServers?: Record<string, unknown> };
-  if (config.mcpServers && typeof config.mcpServers === "object" && "tether" in config.mcpServers) {
-    return { path, action: "unchanged" };
+  if (config.mcpServers !== undefined && (typeof config.mcpServers !== "object" || config.mcpServers === null || Array.isArray(config.mcpServers))) {
+    throw new Error(`${path} has a non-object "mcpServers" value; fix or remove it and rerun`);
+  }
+  if (config.mcpServers && "tether" in config.mcpServers) {
+    if (JSON.stringify(config.mcpServers.tether) === JSON.stringify(MCP_SERVER_ENTRY)) {
+      return { path, action: "unchanged" };
+    }
+    return { path, action: "kept", note: `existing "tether" entry differs from ${JSON.stringify(MCP_SERVER_ENTRY)}; left as-is` };
   }
   config.mcpServers = { ...config.mcpServers, tether: MCP_SERVER_ENTRY };
   writeAtomic(path, JSON.stringify(config, null, 2) + "\n");
@@ -118,6 +125,9 @@ function initSkill(dir: string): InitResult {
 
 /** Run the full init against a project directory. */
 export function runInit(dir: string, opts: { skill?: boolean } = {}): InitResult[] {
+  if (!existsSync(dir)) {
+    throw new Error(`directory ${dir} does not exist`);
+  }
   const results = [initMcpJson(dir), initAgentsMd(dir)];
   if (opts.skill) results.push(initSkill(dir));
   return results;
