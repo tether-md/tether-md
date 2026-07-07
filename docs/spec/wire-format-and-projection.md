@@ -64,7 +64,7 @@ tether:store-->
 ```jsonc
 {
   "id":     "01J9F3K8...",          // ULID; matches the inline marker c=<ID>
-  "v":      1,                       // record schema version
+  "v":      1,                       // record schema version (2 = carries a move `dest`, §2.7)
   "trust":  "fact" | "interpretation",   // the two trust classes
   "kind":   "comment" | "gate-finding",  // dogfood: the gate writes findings as comments
   "author": "human" | "agent" | "gate",
@@ -75,6 +75,7 @@ tether:store-->
     "quote":    { "exact": "...", "prefix": "...", "suffix": "..." },  // W3C TextQuoteSelector
     "position": { "start": 1234, "end": 1251 }                         // W3C TextPositionSelector (hint)
   },
+  "dest": { /* optional move destination, kind "comment" only, see §2.7 */ },
   "meta": { /* kind-specific, see §2.6 */ }
 }
 ```
@@ -111,6 +112,68 @@ Fallback (config flag): **base64** the whole line (standard alphabet; base64url'
   "suggestion":"soften 'demonstrated' → 'suggested'"  // proposed downgrade (D10); inert until human applies
 }
 ```
+
+### 2.7 `dest` for move comments
+
+A comment may carry a **move destination**: a request that its anchored span be moved to
+another point in the document. Like `proposal`, it is **inert until a human accepts it**.
+
+```jsonc
+"dest": {
+  "quote":    { "exact": "...", "prefix": "...", "suffix": "..." },  // NON-EMPTY adjacent prose
+  "position": { "start": 987, "end": 1010 },                          // hint, P(raw) space (§4)
+  "side":     "before" | "after"                                      // insert at quote start | end
+}
+```
+
+Rules:
+
+- **The destination is a point, but a point cannot re-anchor** (an empty quote orphans
+  immediately, §7). So the point is expressed as a quote of **non-empty** adjacent prose
+  plus a `side`: the insertion point is the resolved span's start (`"before"`) or end
+  (`"after"`). `dest.quote.exact` MUST be non-empty; parsers hard-fail otherwise.
+- **The destination quote MUST be unique in the clean document** — it re-anchors by text
+  alone (no marker as ground truth), and an ambiguous quote could silently re-attach to
+  the wrong copy. Writers refuse to create an ambiguous destination (quote more context
+  instead); `acceptMove` re-checks uniqueness at accept time and refuses if edits have
+  since duplicated the text.
+- `dest` is only valid on `kind: "comment"`; hard-fail on `gate-finding`.
+- **`dest` + `proposal` on one record is a hard parse failure.** A kernel that understands
+  only one of the two could half-apply the record (e.g. replace without moving). Writers
+  MUST NOT create the combination; readers MUST reject it.
+- The destination has **no inline marker**; it re-anchors purely by quote, with
+  `dest.position.start` as the locality hint. It uses the same confidence bands as
+  `target` (§7).
+- **Versioning:** a record carrying `dest` MUST be written with `v: 2`, and `v: 2` MUST
+  carry `dest` (each without the other is a hard parse failure). This is deliberate:
+  pre-move kernels tolerate and round-trip unknown *fields*, so a `v: 1` move record
+  would parse there as a plain comment — and the old `setProposal` (which knows no
+  `dest` guard) could then attach a proposal to it, letting the old `acceptProposal`
+  apply the rewrite while silently discarding the requested move. A version bump makes
+  the old kernel's own `v must be 1` check refuse the whole store **loudly** instead
+  ("hard-fail rather than mis-parse"). The cost is explicit: a pre-move kernel cannot
+  read a document while it contains a pending move; accepting or rejecting all moves
+  returns the file to pure `v: 1` records.
+
+**Accepting a move** (`acceptMove`) applies only when BOTH anchors resolve as `open` with
+byte-exact quote matches (same posture as accepting a proposal). It removes the comment,
+deletes the source span, and re-inserts the text at the destination point, normalizing the
+two seams to the span's granularity: the deletion hole collapses to one blank-line
+separator for a block (none at a document edge; a single newline for a line-granular span;
+plain splice for an inline span), and the insertion synthesizes separators **on both
+sides** of the moved text — only what the destination point doesn't already have, so a
+block boundary degenerates to a single trailing/leading separator while an arbitrary
+mid-paragraph point gets both. Text inserted at a boundary where another comment's inline
+marker sits lands **before** the marker (a marker must stay hugging its anchored text). A
+destination inside or immediately adjacent to the source's extended hole is a no-op and
+is rejected — at record creation and again at accept.
+
+v1 refusals (loud, never silent corruption): a source span that contains — or whose
+surrounding blank-line hole contains, boundary-inclusive at the hole start — another
+comment's marker; seams or destinations bordering **CRLF** line endings (moves are
+LF-only in v1); seams or destinations bordering **whitespace-only blank lines** (blank
+per CommonMark but invisible in editors — normalize to empty lines first); an ambiguous
+destination quote (above).
 
 ## 3. Renderer behavior (v1 path)
 

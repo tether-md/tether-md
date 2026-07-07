@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- **Move a paragraph (pick up / place):** `⌘⌥M` / `Ctrl+Alt+M` (or right-click → *Tether: Move Paragraph*) picks up the paragraph under the caret/selection; the next click places it at the nearest paragraph boundary, or press the keybinding again for a destination QuickPick with a live in-editor preview. Stores a move comment (paired ①/⇣① badges); the text moves only when you click **Accept Move** on its thread. `Esc` cancels; any document edit disarms. Moves ride the same re-anchoring as comments — if the excerpt or destination drifts, the thread warns and Accept refuses.
+
 ## 0.1.1
 
 No extension changes; version lockstep with `tether-md` 0.1.1 (which adds `tether init` and MCP server instructions).

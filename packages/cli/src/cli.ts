@@ -54,7 +54,7 @@ Usage:
   tether comment add <file> [opts]     Insert a comment (non-destructive by default).
   tether comment suggest <file> <id> --to U   Attach a proposed rewrite (suggestion mode).
   tether comment diff <file> <id>      Preview a proposal against the currently-anchored text.
-  tether comment accept <file> <id>    Apply a comment's proposal, then remove the comment.
+  tether comment accept <file> <id>    Apply a comment's proposal or move, then remove the comment.
   tether comment reject <file> <id>    Discard a comment's proposal + the comment.
   tether comment resolve <file> <id>   Mark a comment resolved.
   tether comment remove <file> <id>    Delete a comment (marker + record).

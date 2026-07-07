@@ -2,7 +2,7 @@
   "name": "tether-md-vscode",
   "private": true,
   "displayName": "Tether MD",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Google-Docs-style anchored comments and AI suggestion review for Markdown — comments live in the file, survive edits, and export away byte-identically.",
   "publisher": "tether-md",
   "icon": "icon.png",
@@ -57,32 +57,41 @@
     },
     "commands": [
       { "command": "tetherMd.addComment", "title": "Tether: Add Comment from Selection" },
+      { "command": "tetherMd.moveSelection", "title": "Tether: Move Paragraph (Pick Destination)" },
+      { "command": "tetherMd.cancelMove", "title": "Tether: Cancel Move" },
       { "command": "tetherMd.exportClean", "title": "Tether: Export Clean Document" },
       { "command": "tetherMd.createComment", "title": "Add Tether Comment" },
       { "command": "tetherMd.acceptSuggestion", "title": "Accept", "enablement": "commentController == tether-md" },
       { "command": "tetherMd.rejectSuggestion", "title": "Reject", "enablement": "commentController == tether-md" },
+      { "command": "tetherMd.acceptMove", "title": "Accept Move", "enablement": "commentController == tether-md" },
       { "command": "tetherMd.deleteThread", "title": "Delete", "enablement": "commentController == tether-md" }
     ],
     "keybindings": [
-      { "command": "tetherMd.addComment", "key": "ctrl+alt+c", "mac": "cmd+alt+c", "when": "editorTextFocus && editorLangId == markdown" }
+      { "command": "tetherMd.addComment", "key": "ctrl+alt+c", "mac": "cmd+alt+c", "when": "editorTextFocus && editorLangId == markdown" },
+      { "command": "tetherMd.moveSelection", "key": "ctrl+alt+m", "mac": "cmd+alt+m", "when": "editorTextFocus && editorLangId == markdown" },
+      { "command": "tetherMd.cancelMove", "key": "escape", "when": "tetherMd.movePending && editorTextFocus && !suggestWidgetVisible && !findWidgetVisible" }
     ],
     "menus": {
       "commandPalette": [
         { "command": "tetherMd.createComment", "when": "false" },
         { "command": "tetherMd.acceptSuggestion", "when": "false" },
         { "command": "tetherMd.rejectSuggestion", "when": "false" },
+        { "command": "tetherMd.acceptMove", "when": "false" },
         { "command": "tetherMd.deleteThread", "when": "false" },
-        { "command": "tetherMd.clearOrphan", "when": "false" }
+        { "command": "tetherMd.clearOrphan", "when": "false" },
+        { "command": "tetherMd.cancelMove", "when": "tetherMd.movePending" }
       ],
       "editor/context": [
-        { "command": "tetherMd.addComment", "when": "editorHasSelection && editorLangId == markdown", "group": "1_modification" }
+        { "command": "tetherMd.addComment", "when": "editorHasSelection && editorLangId == markdown", "group": "1_modification" },
+        { "command": "tetherMd.moveSelection", "when": "editorLangId == markdown", "group": "1_modification" }
       ],
       "comments/commentThread/context": [
         { "command": "tetherMd.createComment", "group": "inline", "when": "commentController == tether-md" }
       ],
       "comments/commentThread/title": [
         { "command": "tetherMd.acceptSuggestion", "group": "inline@1", "when": "commentController == tether-md && commentThread =~ /^suggestion:/" },
-        { "command": "tetherMd.rejectSuggestion", "group": "inline@2", "when": "commentController == tether-md && commentThread =~ /^suggestion:/" },
+        { "command": "tetherMd.acceptMove", "group": "inline@1", "when": "commentController == tether-md && commentThread =~ /^move:/" },
+        { "command": "tetherMd.rejectSuggestion", "group": "inline@2", "when": "commentController == tether-md && commentThread =~ /^(suggestion|move):/" },
         { "command": "tetherMd.deleteThread", "group": "inline@3", "when": "commentController == tether-md && commentThread =~ /^comment:/" }
       ]
     }

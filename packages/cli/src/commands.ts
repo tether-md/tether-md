@@ -5,11 +5,13 @@ import {
   project,
   cleanExport,
   resolveAll,
+  resolveDest,
   insertComment,
   removeComment,
   setCommentStatus,
   setProposal,
   acceptProposal,
+  acceptMove,
   replaceClean,
   type Author,
   type Kind,
@@ -36,9 +38,9 @@ export interface ListFilters {
 
 /** `tether comment list <file>` — each store record joined with its resolved anchor. */
 export function runCommentList(raw: string, filters?: ListFilters): string {
-  const { store } = project(raw);
+  const proj = project(raw);
   const anchors = new Map(resolveAll(raw).map((a) => [a.id, a]));
-  let records = store;
+  let records = proj.store;
   if (filters?.status) records = records.filter((r) => filters.status!.includes(r.status));
   if (filters?.author) records = records.filter((r) => r.author === filters.author);
   if (filters?.kind) records = records.filter((r) => r.kind === filters.kind);
@@ -51,6 +53,11 @@ export function runCommentList(raw: string, filters?: ListFilters): string {
     quote: r.target.quote.exact,
     body: r.body,
     proposal: r.proposal,
+    // §2.7 — a move comment: where the anchored span is asked to go.
+    moveTo:
+      r.kind === "comment" && r.dest
+        ? { side: r.dest.side, quote: r.dest.quote.exact, anchor: resolveDest(proj.clean, r) }
+        : undefined,
     anchor: anchors.get(r.id) ?? null,
   }));
   return JSON.stringify(out, null, 2);
@@ -122,8 +129,10 @@ export function runCommentSuggest(raw: string, id: string, to: string): string {
   return setProposal(raw, id, to);
 }
 
-/** `tether comment accept <id>` — apply the proposal to the span and remove the comment. */
+/** `tether comment accept <id>` — apply the proposal (or move, §2.7) and remove the comment. */
 export function runCommentAccept(raw: string, id: string): string {
+  const rec = project(raw).store.find((r) => r.id === id);
+  if (rec && rec.kind === "comment" && rec.dest) return acceptMove(raw, id);
   return acceptProposal(raw, id);
 }
 
@@ -143,6 +152,8 @@ export interface StatusReport {
   };
   /** Comments carrying a proposal (each is Accept-able / Reject-able). */
   proposals: number;
+  /** Comments carrying a move destination (§2.7; each is Accept-able / Reject-able). */
+  moves: number;
   orphans: string[];
   needsReview: string[];
 }
@@ -160,10 +171,13 @@ export function runStatus(raw: string): StatusReport {
   const orphans: string[] = [];
   const needsReview: string[] = [];
   let proposals = 0;
+  let moves = 0;
   for (const r of store) {
     counts.byAuthor[r.author] = (counts.byAuthor[r.author] ?? 0) + 1;
     if (r.proposal !== undefined) proposals += 1;
     const effective = r.status === "resolved" ? "resolved" : anchors.get(r.id)!.status;
+    // "moves pending" means actionable: a human-resolved move is done, not pending.
+    if (r.kind === "comment" && r.dest !== undefined && effective !== "resolved") moves += 1;
     if (effective === "resolved") counts.resolved += 1;
     else if (effective === "open") counts.open += 1;
     else if (effective === "needs-review") {
@@ -174,7 +188,7 @@ export function runStatus(raw: string): StatusReport {
       orphans.push(r.id);
     }
   }
-  return { counts, proposals, orphans, needsReview };
+  return { counts, proposals, moves, orphans, needsReview };
 }
 
 /** Human rendering of a StatusReport — a few terse lines, one glance. */
@@ -188,6 +202,7 @@ export function formatStatus(file: string, r: StatusReport): string {
       .join(", ")}`,
     `proposals pending: ${r.proposals}`,
   ];
+  if (r.moves > 0) lines.push(`moves pending: ${r.moves}`);
   const broken = [...r.orphans.map((id) => `${id} orphaned`), ...r.needsReview.map((id) => `${id} needs-review`)];
   lines.push(broken.length > 0 ? `anchor health: ${broken.join(", ")}` : "anchor health: ok");
   return lines.join("\n");
@@ -214,6 +229,9 @@ export function runCommentDiff(raw: string, id: string): DiffReport {
   const proj = project(raw);
   const rec = proj.store.find((r) => r.id === id);
   if (!rec) throw new RangeError(`comment ${id} not found`);
+  if (rec.kind === "comment" && rec.dest) {
+    throw new RangeError(`comment ${id} is a move (no proposal text to diff) — see \`comment list\` for its destination`);
+  }
   if (rec.proposal === undefined) throw new RangeError(`comment ${id} has no proposal to preview`);
   const anchor = resolveAll(raw).find((a) => a.id === id)!;
   const current = anchor.range ? proj.clean.slice(anchor.range.start, anchor.range.end) : null;

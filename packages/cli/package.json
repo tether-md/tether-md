@@ -1,6 +1,6 @@
 {
   "name": "tether-md",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Anchored comments for Markdown that AI agents act on, but never apply. The `tether` CLI: comment, suggest, accept/reject, and export a byte-identical clean document.",
   "type": "module",
   "bin": {
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@tether-md/kernel": "^0.1.1",
+    "@tether-md/kernel": "^0.2.0",
     "zod": "^4.4.3"
   },
   "license": "MIT"

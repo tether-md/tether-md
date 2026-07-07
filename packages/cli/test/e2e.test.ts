@@ -207,6 +207,7 @@ describe("tether status (built binary)", () => {
       file: f,
       counts: { total: 1, open: 1, needsReview: 0, orphaned: 0, resolved: 0, byAuthor: { human: 1 } },
       proposals: 1,
+      moves: 0,
       orphans: [],
       needsReview: [],
     });

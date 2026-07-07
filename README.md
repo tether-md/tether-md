@@ -22,8 +22,16 @@ Tether MD is that layer: anchored comments for Markdown that AI agents act on, b
 
 - **Comments live in the file.** One invisible HTML-comment marker per comment, plus a machine-readable block at the end. No database, no sidecar, no service; the raw file renders clean on GitHub, in VS Code preview, and through pandoc.
 - **Anchors survive editing.** Quote selectors with fuzzy re-anchoring follow the text through edits, flag uncertain matches as needs-review, or orphan with an error.
-- **Agents propose; humans apply.** Your comments are anchored instructions. An agent attaches proposals; Accept applies one and clears the comment, Reject discards it.
+- **Agents propose; humans apply.** Your comments are anchored instructions. An agent attaches proposals; Accept applies one and clears the comment, Reject discards it. Paragraph moves follow the same rule: mark where text should go, and nothing moves until you press Accept Move.
 - **Clean export is tested in CI.** One projection function strips the comment layer; the result is byte-for-byte your prose.
+
+## Install
+
+Three pieces. The CLI is the foundation; the other two are optional and independent.
+
+1. CLI + MCP server — `npm i -g tether-md` (Node 20+). Gives you the `tether` command and `tether mcp`.
+2. VS Code extension — download `tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases), then Extensions panel → `⋯` → Install from VSIX → reload the window. (Or from a clone: `npm install && npm run build && npm run package -w tether-md-vscode`.)
+3. Agent compatibility, per project — run `tether init` in the project root. It writes `.mcp.json` (project-scoped MCP server) and the `AGENTS.md` contract note; `tether init --skill` also installs the Claude Code skill. Details in [Hook up your agent](#hook-up-your-agent).
 
 ## Quickstart
 
@@ -87,13 +95,22 @@ The working loop becomes: comment on phrases, tell the agent to "address my comm
 
 ## In VS Code
 
-Install the extension: download `tether-md.vsix` from [Releases](https://github.com/tether-md/tether-md/releases), then in VS Code open the Extensions panel and pick Install from VSIX from its `⋯` menu. Or build it from a clone (`npm install && npm run build && npm run package -w tether-md-vscode`). Then:
+Install per [Install](#install) above, open any markdown file, and everything below works on it. Comments render as native inline threads; nothing needs configuring.
 
-- select prose, press <kbd>⌘⌥C</kbd> (<kbd>Ctrl+Alt+C</kbd> on Windows/Linux), type your comment; it renders as a native inline thread
-- agent proposals appear in the thread as a diff (current vs. proposed) with Accept and Reject buttons
-- fuzzy re-anchors get a dashed warning underline and a diagnostic; orphans land in the Problems panel with a one-click fix
-- "Tether: Export Clean Document" writes `<name>.clean.md` beside the file
-- VS Code shows one gutter `+` per logical line, so for a second comment on the same soft-wrapped paragraph, select the text and use the keybinding
+| keys / surface | what it does |
+|---|---|
+| select prose, <kbd>⌘⌥C</kbd> (<kbd>Ctrl+Alt+C</kbd>) | comment on the selection: type the note, pick fact or interpretation |
+| gutter `+` | same, mouse-first (one `+` per logical line; for a second comment on the same soft-wrapped paragraph, select and use the keybinding) |
+| caret in a paragraph, <kbd>⌘⌥M</kbd> (<kbd>Ctrl+Alt+M</kbd>) | pick the paragraph up to move (no selection needed); then click where it should go — the click snaps to the nearest paragraph boundary |
+| <kbd>⌘⌥M</kbd> again while a move is armed | destination list with a live "move here" preview in the editor |
+| <kbd>Esc</kbd> | cancel an armed move (any edit also cancels it) |
+| thread buttons | Accept / Reject on an agent's suggestion; Accept Move / Reject on a move; Delete on a plain comment |
+| right-click menu | Tether: Add Comment from Selection, Tether: Move Paragraph |
+| command palette | Tether: Export Clean Document — writes `<name>.clean.md` beside the file |
+
+A marked move is just a comment with a destination: the excerpt gets a ① badge, the destination a ⇣① badge, and nothing actually moves until you press Accept Move on its thread. Moves show up in `tether comment list` (a `moveTo` field) and `tether comment accept` applies them, so the CLI and the editor stay interchangeable.
+
+If anchoring ever degrades, you hear about it: fuzzy re-anchors get a dashed warning underline and a diagnostic, and Accept refuses until re-confirmed; orphans land in the Problems panel with a one-click fix.
 
 The editor and the agent never talk to each other. Both only touch the file, so you can watch proposals arrive in your open editor.
 
@@ -167,11 +184,13 @@ git clone https://github.com/tether-md/tether-md && cd tether-md
 npm install && npm run build && npm test
 ```
 
-## Limitations (v0.1)
+## Limitations
 
 - Editor UI is VS Code-only today. The kernel is editor-agnostic; Obsidian and nvim ports are the most-wanted contributions.
 - The propose-not-apply contract is structural on the MCP surface, but an agent with its own file tools follows it only once it has the skill or the `AGENTS.md` note above. An untold agent edits the file like any other markdown.
 - Store blocks are LF-only by grammar. CRLF hard-fails loudly rather than mis-parsing; the repo's `.gitattributes` protects checkouts, and tolerant reads are tracked.
+- Paragraph moves are LF-only and paragraph-granular (paragraphs are blank-line separated). Seams that touch CRLF or whitespace-only blank lines, and destinations whose text repeats verbatim elsewhere, are refused loudly rather than guessed at.
+- A file with a pending move is written as a `v: 2` record: tether-md 0.1.x refuses the whole file until the move is accepted or rejected (deliberate — an older version could otherwise half-apply it). Accepting or rejecting all moves returns the file to `v: 1`.
 - One store block per file; concurrent writers race at the file level. Treat the raw file like source code (git merges the store poorly).
 - A comment anchored inside a code region relocates its marker to just before that region. Two pathological shapes are rejected with clear errors.
 
