@@ -5,6 +5,8 @@ export type {
   Anchor,
   Author,
   CommentRecord,
+  Dest,
+  DestSide,
   FindingMeta,
   FindingRecord,
   Kind,
@@ -31,7 +33,7 @@ export {
 } from "./projection.js";
 
 // Anchoring & re-anchoring (confidence bands per D3).
-export { resolve, resolveQuote } from "./anchor.js";
+export { resolve, resolveQuote, resolveDest } from "./anchor.js";
 
 // Comment write operations + bulk resolution.
 export {
@@ -41,6 +43,7 @@ export {
   setCommentStatus,
   setProposal,
   acceptProposal,
+  acceptMove,
   replaceClean,
   resolveAll,
   type InsertOptions,

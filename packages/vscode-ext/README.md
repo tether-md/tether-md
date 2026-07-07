@@ -14,6 +14,7 @@ Built on VS Code's native Comments API: inline comment threads, no custom UI.
 |---|---|
 | Add a comment | Select prose and hover the gutter for the `+`, or press `⌘⌥C` (`Ctrl+Alt+C` on Windows/Linux) / right-click → *Add Tether Comment*. Type the body inline, then pick the trust class (fact or interpretation). A marker + store record is written into the file; the comment renders as an inline thread. VS Code shows one gutter `+` per logical line; for a second comment on the same soft-wrapped paragraph, select the text and use the keybinding. |
 | Suggestion mode (Accept / Reject) | When an agent proposes a rewrite for a comment, its thread shows a diff preview (the currently-anchored text vs. the proposal) with **Accept** (applies it to the span and clears the comment, no leftover artifact) and **Reject** (discards the proposal + comment). If the span drifted since the proposal was made, the thread warns that Accept will refuse. The agent never applies; you decide. |
+| Move a paragraph (pick up / place) | Put the caret in (or select) a paragraph and press `⌘⌥M` (`Ctrl+Alt+M`) or right-click → *Tether: Move Paragraph*. The paragraph is "picked up" (highlighted); **click** where it should go — the click snaps to the nearest paragraph boundary — or press `⌘⌥M` again for a **destination list with a live preview** in the editor. `Esc` cancels. This stores a move comment (source ① badge, destination ⇣① badge); nothing moves until you click **Accept Move** on its thread. If either end drifted since marking, the thread warns and Accept refuses. v1 limits: LF line endings only (the command says so on CRLF files), and blank lines containing only spaces are treated as paragraph-interior. |
 | Delete | Plain comments (no proposal) have a **Delete** button. |
 | Threads | Comments render as native threads at their anchored span, re-rendered from the store on every change; suggestions expand to show the diff. |
 | **Tether: Export Clean Document** | Writes `<name>.clean.md` beside the file (clean-export = P; zero artifacts) and opens it. |
@@ -22,6 +23,8 @@ Built on VS Code's native Comments API: inline comment threads, no custom UI.
 | Orphans | A comment that can't re-anchor (below the 0.50 confidence floor) is surfaced loudly in the Problems panel, with a quick fix to clear it. |
 | Malformed file | A bad store block hard-fails the kernel; the extension shows it as an error diagnostic (never silently mis-renders). |
 | Setting | `tetherMd.enable` (default `true`, resource-scoped); set `false` to make the extension inert for a folder. |
+
+> **Tip:** VS Code's built-in text drag-and-drop moves text *immediately*, with no review step — the opposite of Tether's model (and an extension cannot intercept it). If you keep dragging by habit, consider disabling it for Markdown in your settings: `"[markdown]": { "editor.dragAndDrop": false }`. Tether never changes this setting for you.
 
 ## Architecture
 

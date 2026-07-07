@@ -128,3 +128,13 @@ export function resolveQuote(clean: string, quote: QuoteSelector, id: string, hi
 export function resolve(clean: string, record: Record, hint?: number): Anchor {
   return resolveQuote(clean, record.target.quote, record.id, hint);
 }
+
+/**
+ * Resolve a move comment's destination quote (§2.7). Returns null when the record
+ * carries no `dest`. The destination has no inline marker, so its recorded position
+ * serves as the locality hint (same stale-tolerant role as a marker hint).
+ */
+export function resolveDest(clean: string, record: Record): Anchor | null {
+  if (record.kind !== "comment" || !record.dest) return null;
+  return resolveQuote(clean, record.dest.quote, record.id, record.dest.position.start);
+}

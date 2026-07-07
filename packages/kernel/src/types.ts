@@ -34,6 +34,21 @@ export interface Target {
   position: PositionSelector;
 }
 
+/** Which side of the quoted destination span moved text lands on (§2.7). */
+export type DestSide = "before" | "after";
+
+/**
+ * A move destination (§2.7). The destination is a POINT, but a zero-width anchor can
+ * never re-anchor (an empty quote orphans immediately, §7) — so the point is expressed
+ * as a quote of NON-EMPTY adjacent prose plus the side of that span the moved text is
+ * inserted on: "before" → at the span's start, "after" → at its end.
+ */
+export interface Dest {
+  quote: QuoteSelector;
+  position: PositionSelector;
+  side: DestSide;
+}
+
 /** kind-specific metadata for gate findings (§2.6). */
 export interface FindingMeta {
   check: "fact-grounding" | "claim-strength";
@@ -56,8 +71,13 @@ export interface FindingMeta {
 export interface RecordBase {
   /** ULID; matches the inline marker `c=<ID>`. */
   id: string;
-  /** Record schema version. */
-  v: 1;
+  /**
+   * Record schema version. `1` = plain comment / finding; `2` = carries a move
+   * destination (§2.7). The bump is deliberate: a v-1-only kernel hard-fails a move
+   * record LOUDLY ("v must be 1") instead of tolerating a field it cannot honor — its
+   * unguarded setProposal could otherwise attach a proposal to a move and half-apply it.
+   */
+  v: 1 | 2;
   trust: Trust;
   author: Author;
   /** The comment / finding text (markdown). */
@@ -77,12 +97,19 @@ export interface RecordBase {
 export interface CommentRecord extends RecordBase {
   kind: "comment";
   meta?: never;
+  /**
+   * Move destination (§2.7): when present, the comment asks that its anchored span be
+   * MOVED to this point. Mutually exclusive with `proposal` — a record carrying both
+   * could be half-applied by a kernel that understands only one of them.
+   */
+  dest?: Dest;
 }
 
 /** A gate finding, dogfooded as a comment (D8); carries typed FindingMeta (§2.6). */
 export interface FindingRecord extends RecordBase {
   kind: "gate-finding";
   meta: FindingMeta;
+  dest?: never;
 }
 
 /**

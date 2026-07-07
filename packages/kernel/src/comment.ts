@@ -7,13 +7,13 @@
 // A comment is an inline marker (in prose) + one store record (at EOF). Both are
 // stripped by P, so adding/removing either never perturbs the clean document.
 
-import { resolve } from "./anchor.js";
-import { project, cleanToRaw, cleanToRawStart, markerHint } from "./projection.js";
+import { resolve, resolveDest } from "./anchor.js";
+import { project, cleanToRaw, cleanToRawStart, markerHint, rawToClean } from "./projection.js";
 import { serializeStore, parseStore, STORE_OPEN, STORE_CLOSE } from "./store.js";
 import { encodeLine } from "./codec.js";
 import { codeRanges } from "./projection.js";
 import { ulid } from "./ulid.js";
-import type { Anchor, Author, FindingMeta, Kind, Record, Status, Trust } from "./types.js";
+import type { Anchor, Author, DestSide, FindingMeta, Kind, Record, Status, Trust } from "./types.js";
 
 /** Context window captured on each side of the anchored span (§2.4). */
 const CONTEXT = 32;
@@ -33,6 +33,12 @@ export interface InsertOptions {
   now?: number;
   /** Injectable id; default a fresh ULID. */
   id?: string;
+  /**
+   * Move destination (§2.7, kind "comment" only): ask that the anchored span be moved
+   * to before/after the NON-EMPTY clean-space span [cleanStart, cleanEnd) — the span
+   * anchors the point, since a zero-width quote can never re-anchor.
+   */
+  dest?: { cleanStart: number; cleanEnd: number; side: DestSide };
 }
 
 export interface InsertResult {
@@ -48,44 +54,80 @@ function splitsSurrogate(s: string, off: number): boolean {
   return off > 0 && off < s.length && isLowSurrogate(s.charCodeAt(off)) && isHighSurrogate(s.charCodeAt(off - 1));
 }
 
+/**
+ * The span must be non-empty: a zero-width anchor captures an empty quote that can
+ * never re-anchor (it orphans immediately). And offsets must land on character
+ * boundaries, not inside an astral pair — else we would capture / write a lone
+ * surrogate (§4: astral chars are two UTF-16 code units).
+ */
+function assertAnchorableSpan(clean: string, cleanStart: number, cleanEnd: number, what: string): void {
+  if (cleanStart < 0 || cleanEnd > clean.length || cleanStart >= cleanEnd) {
+    throw new RangeError(
+      `invalid ${what} [${cleanStart}, ${cleanEnd}] for clean length ${clean.length} (must select non-empty text)`,
+    );
+  }
+  if (splitsSurrogate(clean, cleanStart) || splitsSurrogate(clean, cleanEnd)) {
+    throw new RangeError(`${what} [${cleanStart}, ${cleanEnd}] falls inside a UTF-16 surrogate pair`);
+  }
+}
+
+/** Quote + position selectors for a clean-space span (§2.4 capture rules). */
+function captureSelectors(clean: string, cleanStart: number, cleanEnd: number) {
+  return {
+    quote: {
+      exact: clean.slice(cleanStart, cleanEnd),
+      prefix: clean.slice(Math.max(0, cleanStart - CONTEXT), cleanStart),
+      suffix: clean.slice(cleanEnd, cleanEnd + CONTEXT),
+    },
+    position: { start: cleanStart, end: cleanEnd },
+  };
+}
+
 /** Build the record for an insertion (exposed for testing the selector capture). */
 export function buildRecord(clean: string, opts: InsertOptions): Record {
   const { cleanStart, cleanEnd } = opts;
-  // The span must be non-empty: a zero-width anchor captures an empty quote that can
-  // never re-anchor (it orphans immediately). Reject it here so no caller can create one.
-  if (cleanStart < 0 || cleanEnd > clean.length || cleanStart >= cleanEnd) {
-    throw new RangeError(
-      `invalid span [${cleanStart}, ${cleanEnd}] for clean length ${clean.length} (must select non-empty text)`,
-    );
-  }
-  // Offsets must land on character boundaries, not inside an astral pair — else we would
-  // capture / write a lone surrogate (§4: astral chars are two UTF-16 code units).
-  if (splitsSurrogate(clean, cleanStart) || splitsSurrogate(clean, cleanEnd)) {
-    throw new RangeError(`span [${cleanStart}, ${cleanEnd}] falls inside a UTF-16 surrogate pair`);
-  }
+  assertAnchorableSpan(clean, cleanStart, cleanEnd, "span");
   const now = opts.now ?? Date.now();
   const base = {
     id: opts.id ?? ulid(now),
-    v: 1 as const,
+    // v 2 marks a move record (§2.7) so pre-move kernels refuse it loudly instead of
+    // tolerating a dest they cannot honor.
+    v: (opts.dest ? 2 : 1) as 1 | 2,
     trust: opts.trust,
     author: opts.author,
     body: opts.body,
     status: opts.status ?? "open",
     created: new Date(now).toISOString(),
-    target: {
-      quote: {
-        exact: clean.slice(cleanStart, cleanEnd),
-        prefix: clean.slice(Math.max(0, cleanStart - CONTEXT), cleanStart),
-        suffix: clean.slice(cleanEnd, cleanEnd + CONTEXT),
-      },
-      position: { start: cleanStart, end: cleanEnd },
-    },
+    target: captureSelectors(clean, cleanStart, cleanEnd),
   };
   if (opts.kind === "gate-finding") {
+    if (opts.dest) throw new RangeError("gate-finding records cannot carry a move destination (§2.7)");
     if (!opts.meta) throw new RangeError("gate-finding records require meta (§2.6)");
     return { ...base, kind: "gate-finding", meta: opts.meta };
   }
-  return { ...base, kind: "comment" };
+  if (!opts.dest) return { ...base, kind: "comment" };
+
+  assertAnchorableSpan(clean, opts.dest.cleanStart, opts.dest.cleanEnd, "dest span");
+  // The insertion point the record asks for: anywhere inside the span's seam-extended
+  // hole (span + the newline runs acceptMove collapses, see moveSeams) the move is a
+  // no-op — reject at creation so a dead move can never be stored.
+  const point = opts.dest.side === "before" ? opts.dest.cleanStart : opts.dest.cleanEnd;
+  const hole = moveSeams(clean, cleanStart, cleanEnd);
+  if (point >= hole.delStart && point <= hole.delEnd) {
+    throw new RangeError(
+      `move destination (insert at ${point}) lies inside or immediately adjacent to the moved span ` +
+        `[${cleanStart}, ${cleanEnd}] — the move would be a no-op`,
+    );
+  }
+  assertCleanSeamPoint(clean, point);
+  const destSel = captureSelectors(clean, opts.dest.cleanStart, opts.dest.cleanEnd);
+  // The destination re-anchors by quote alone (no marker as ground truth): an ambiguous
+  // quote could later re-anchor to the WRONG copy with full confidence and the move would
+  // apply there silently. Refuse at creation — same posture as the CLI's locateQuote.
+  if (countOccurrences(clean, destSel.quote.exact) > 1) {
+    throw new RangeError("destination quote is ambiguous (appears more than once); quote more context");
+  }
+  return { ...base, kind: "comment", dest: { ...destSel, side: opts.dest.side } };
 }
 
 /**
@@ -241,8 +283,14 @@ export function setProposal(raw: string, id: string, proposal: string): string {
     throw new RangeError("proposal text may not contain Tether markup");
   }
   const span = parseStore(raw, codeRanges(raw));
-  if (!span || !span.records.some((r) => r.id === id)) {
+  const rec = span?.records.find((r) => r.id === id);
+  if (!span || !rec) {
     throw new RangeError(`comment ${id} not found`);
+  }
+  // §2.7: dest + proposal on one record is a wire-format violation (half-apply hazard);
+  // refuse here too so no new-kernel code path can ever create the combination.
+  if (rec.kind === "comment" && rec.dest) {
+    throw new RangeError(`comment ${id} is a move; it cannot also carry a proposal (accept the move or remove it)`);
   }
   const updated = span.records.map((r) => (r.id === id ? ({ ...r, proposal } as Record) : r));
   return raw.slice(0, span.rawStart) + "\n" + serializeStore(updated) + raw.slice(span.rawEnd);
@@ -285,6 +333,207 @@ export function acceptProposal(raw: string, id: string): string {
   }
   const applied = replaceClean(raw, anchor.range.start, anchor.range.end, rec.proposal);
   return removeComment(applied, id);
+}
+
+/**
+ * Seam geometry for moving the span [cleanStart, cleanEnd): the deletion hole extended
+ * over the adjacent newline runs, and the separator that reflects the span's granularity
+ * (0 newlines = inline splice, 1 = line, ≥2 = block with one blank line).
+ *
+ * Clean "\n" seams only (v1): the walks and the synthesized separators assume LF line
+ * endings and true empty blank lines. On a CRLF document — or one whose "blank" lines
+ * contain spaces/tabs (blank per CommonMark, invisible in editors) — they would merge
+ * paragraphs and double separators. Refuse loudly instead of corrupting silently.
+ */
+function moveSeams(clean: string, cleanStart: number, cleanEnd: number) {
+  let delStart = cleanStart;
+  while (delStart > 0 && clean[delStart - 1] === "\n") delStart--;
+  let delEnd = cleanEnd;
+  while (delEnd < clean.length && clean[delEnd] === "\n") delEnd++;
+  if (clean.slice(Math.max(0, delStart - 2), Math.min(clean.length, delEnd + 2)).includes("\r")) {
+    throw new RangeError("the moved text borders CRLF line endings; moves support LF documents only (v1)");
+  }
+  if (/(^|\n)[ \t]+$/.test(clean.slice(0, delStart)) || /^[ \t]+(\n|$)/.test(clean.slice(delEnd))) {
+    throw new RangeError(
+      "the moved text borders a whitespace-only blank line; normalize it to an empty line first (v1 moves need clean seams)",
+    );
+  }
+  const beforeGap = cleanStart - delStart;
+  const afterGap = delEnd - cleanEnd;
+  const sep = "\n".repeat(Math.min(2, Math.max(beforeGap, afterGap)));
+  return { delStart, delEnd, beforeGap, afterGap, sep };
+}
+
+/** Occurrences of `needle` in `clean` (bounded early: we only care about 0, 1, many). */
+function countOccurrences(clean: string, needle: string): number {
+  let n = 0;
+  for (let i = clean.indexOf(needle); i !== -1 && n < 2; i = clean.indexOf(needle, i + 1)) n++;
+  return n;
+}
+
+/** The insertion seam has the same clean-"\n"-seams constraint as the deletion seams (v1). */
+function assertCleanSeamPoint(clean: string, point: number): void {
+  let s = point;
+  while (s > 0 && clean[s - 1] === "\n") s--;
+  let e = point;
+  while (e < clean.length && clean[e] === "\n") e++;
+  if (clean.slice(Math.max(0, s - 2), Math.min(clean.length, e + 2)).includes("\r")) {
+    throw new RangeError("the move destination borders CRLF line endings; moves support LF documents only (v1)");
+  }
+  if (/(^|\n)[ \t]+$/.test(clean.slice(0, s)) || /^[ \t]+(\n|$)/.test(clean.slice(e))) {
+    throw new RangeError(
+      "the move destination borders a whitespace-only blank line; normalize it to an empty line first (v1 moves need clean seams)",
+    );
+  }
+}
+
+/**
+ * Insert prose at a clean-space POINT, landing BEFORE any inline marker sitting at that
+ * boundary — a marker is the locality hint for the text it precedes, so inserted text
+ * must never wedge between a marker and its anchored span. Same protections as
+ * replaceClean (no Tether markup in the text; the comment layer stays invisible).
+ */
+function insertCleanAt(raw: string, cleanPoint: number, text: string): string {
+  const proj = project(raw);
+  if (cleanPoint < 0 || cleanPoint > proj.clean.length) {
+    throw new RangeError(`invalid insertion point ${cleanPoint} for clean length ${proj.clean.length}`);
+  }
+  if (splitsSurrogate(proj.clean, cleanPoint)) {
+    throw new RangeError(`insertion point ${cleanPoint} falls inside a UTF-16 surrogate pair`);
+  }
+  if (/<!--tether:/.test(text) || text.includes(STORE_CLOSE)) {
+    throw new RangeError("inserted text may not contain Tether markup");
+  }
+  const rawPoint = cleanToRaw(proj.offsetMap, cleanPoint);
+  const next = raw.slice(0, rawPoint) + text + raw.slice(rawPoint);
+  assertLayerInvisible(next, proj.clean.slice(0, cleanPoint) + text + proj.clean.slice(cleanPoint), "acceptMove");
+  return next;
+}
+
+/**
+ * Accept a move comment (§2.7): delete its anchored span, re-insert that text at the
+ * recorded destination, then remove the comment (marker + record). The two seams are
+ * normalized to the span's granularity — a moved block keeps exactly one blank-line
+ * separator on each side (none at a document edge); a moved line keeps one newline; an
+ * inline span splices plainly. Applies only while BOTH anchors re-resolve as "open" with
+ * byte-exact quotes (same posture as acceptProposal: never apply against drifted text).
+ */
+export function acceptMove(raw: string, id: string): string {
+  const proj = project(raw);
+  const rec = proj.store.find((r) => r.id === id);
+  if (!rec) throw new RangeError(`comment ${id} not found`);
+  if (rec.kind !== "comment" || !rec.dest) throw new RangeError(`comment ${id} has no move destination to accept`);
+  const anchor = resolveAll(raw).find((a) => a.id === id);
+  if (!anchor || !anchor.range) {
+    throw new RangeError(`comment ${id} is orphaned; cannot apply its move`);
+  }
+  // Same two guards as acceptProposal, for the same reasons: a needs-review anchor may be
+  // a partial/wrong substring, and even an "open" fuzzy reattachment can cover text that
+  // no longer reads as quoted — moving either would corrupt prose the human just edited.
+  if (anchor.status !== "open") {
+    throw new RangeError(
+      `comment ${id} no longer anchors cleanly (${anchor.status}, confidence ${anchor.confidence.toFixed(2)}); re-confirm its span before accepting`,
+    );
+  }
+  const clean = proj.clean;
+  const moved = clean.slice(anchor.range.start, anchor.range.end);
+  if (moved !== rec.target.quote.exact) {
+    throw new RangeError(
+      `comment ${id}'s anchored text has changed since the move was marked ` +
+        `(was ${JSON.stringify(rec.target.quote.exact)}, now ${JSON.stringify(moved)}); ` +
+        `re-mark the move against the current text before accepting`,
+    );
+  }
+  // The destination must hold to the SAME standard — it has no marker, so it re-anchors
+  // purely by quote; anything below byte-exact would drop the text somewhere surprising.
+  const destAnchor = resolveDest(clean, rec)!;
+  if (!destAnchor.range || destAnchor.status !== "open") {
+    throw new RangeError(
+      `comment ${id}'s move destination no longer anchors cleanly ` +
+        `(${destAnchor.status}, confidence ${destAnchor.confidence.toFixed(2)}); re-mark the destination`,
+    );
+  }
+  const destCurrent = clean.slice(destAnchor.range.start, destAnchor.range.end);
+  if (destCurrent !== rec.dest.quote.exact) {
+    throw new RangeError(
+      `comment ${id}'s destination text has changed since the move was marked ` +
+        `(was ${JSON.stringify(rec.dest.quote.exact)}, now ${JSON.stringify(destCurrent)}); re-mark the destination`,
+    );
+  }
+  // Ambiguity re-checked NOW, not just at creation: edits can duplicate the quoted text
+  // later, and a markerless anchor cannot tell copies apart — it would apply at whichever
+  // copy scores best, silently. Refuse instead.
+  if (countOccurrences(clean, rec.dest.quote.exact) > 1) {
+    throw new RangeError(
+      `comment ${id}'s destination text now appears more than once in the document; re-mark the destination`,
+    );
+  }
+
+  const { delStart, delEnd, afterGap, sep } = moveSeams(clean, anchor.range.start, anchor.range.end);
+  const point = rec.dest.side === "before" ? destAnchor.range.start : destAnchor.range.end;
+  if (point >= delStart && point <= delEnd) {
+    throw new RangeError(
+      `comment ${id}'s destination falls inside or immediately adjacent to the moved text (the move would be a no-op)`,
+    );
+  }
+  assertCleanSeamPoint(clean, point);
+  // v1 refuses to move text other comments anchor to (their markers would strand).
+  // replaceClean catches markers strictly inside the hole; a marker exactly AT delStart —
+  // anchoring a span that begins with the separator — would escape via replaceClean's
+  // leading-marker exclusion, so check the half-open hole [delStart, delEnd) explicitly.
+  // A marker at delEnd anchors the FOLLOWING block and is unaffected by the move.
+  for (const mk of proj.markers) {
+    if (mk.id === id) continue;
+    const at = rawToClean(proj.offsetMap, mk.rawStart);
+    if (at >= delStart && at < delEnd) {
+      throw new RangeError(
+        `comment ${id}'s moved text (or its surrounding blank lines) contains another comment's anchor; ` +
+          `resolve or move that comment first`,
+      );
+    }
+  }
+  // What fills the hole: an interior hole keeps one granularity-matched separator; a hole
+  // at the document's start keeps nothing; at the document's end, just the file's trailing
+  // newline if it had one.
+  const holeFill = delStart === 0 ? "" : delEnd === clean.length ? (afterGap > 0 ? "\n" : "") : sep;
+  // The moved text must end up separated from its new neighbours ON BOTH SIDES at its own
+  // granularity (§2.7) — synthesize only what the destination point doesn't already have.
+  // At a block boundary this degenerates to the classic one-sided pad; at an arbitrary
+  // agent-chosen point (e.g. mid-paragraph) both sides get separators.
+  const gN = sep.length;
+  const beforeP = clean.slice(0, point);
+  const afterP = clean.slice(point);
+  const leftRun = (beforeP.match(/\n*$/) as RegExpMatchArray)[0].length;
+  const rightRun = (afterP.match(/^\n*/) as RegExpMatchArray)[0].length;
+  const leftPad = beforeP.length === leftRun ? 0 : Math.max(0, gN - leftRun); // doc start needs nothing
+  const rightPad = afterP.length === rightRun ? 0 : Math.max(0, gN - rightRun); // doc end keeps its own tail
+  const insertText = "\n".repeat(leftPad) + moved + "\n".repeat(rightPad);
+
+  // Remove marker + record FIRST: removeComment leaves the clean document untouched
+  // (Invariant 2), so every clean-space offset above stays valid — and the hole edit no
+  // longer contains this comment's own marker. Both edits are clean-space, applied
+  // later-in-document first, so the earlier offsets survive unchanged. Any OTHER comment
+  // anchored within the moved region makes replaceClean throw (v1 refuses to carry
+  // markers along); rewrap that error with an actionable message.
+  let next = removeComment(raw, id);
+  try {
+    if (point >= delEnd) {
+      next = insertCleanAt(next, point, insertText);
+      next = replaceClean(next, delStart, delEnd, holeFill);
+    } else {
+      next = replaceClean(next, delStart, delEnd, holeFill);
+      next = insertCleanAt(next, point, insertText);
+    }
+  } catch (err) {
+    if (err instanceof RangeError && /overlaps the comment layer/.test((err as Error).message)) {
+      throw new RangeError(
+        `comment ${id}'s moved text (or its surrounding blank lines) contains another comment's anchor; ` +
+          `resolve or move that comment first`,
+      );
+    }
+    throw err;
+  }
+  return next;
 }
 
 /** Resolve every comment in `raw` against its own clean document. */

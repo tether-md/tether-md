@@ -123,7 +123,7 @@ function parseRecord(line: string): Record {
   };
   if (!isObj(value)) return bad("not an object");
   if (typeof value.id !== "string" || !isUlid(value.id)) return bad("id is not a ULID");
-  if (value.v !== 1) return bad("v must be 1");
+  if (value.v !== 1 && value.v !== 2) return bad("v must be 1 or 2");
   if (typeof value.trust !== "string" || !TRUST.has(value.trust)) return bad("invalid trust");
   if (typeof value.kind !== "string" || !KIND.has(value.kind)) return bad("invalid kind");
   if (typeof value.author !== "string" || !AUTHOR.has(value.author)) return bad("invalid author");
@@ -141,6 +141,33 @@ function parseRecord(line: string): Record {
   }
   if (value.proposal !== undefined && typeof value.proposal !== "string") return bad("proposal must be a string");
   if (value.kind === "gate-finding" && !isObj(value.meta)) return bad("gate-finding requires meta");
+  // §2.7 — v 2 is exactly "carries a move destination"; each without the other is malformed.
+  if (value.v === 2 && value.dest === undefined) return bad("v 2 requires dest (§2.7)");
+  if (value.dest !== undefined && value.v !== 2) return bad("dest requires v 2 (§2.7)");
+  if (value.dest !== undefined) {
+    // §2.7 — a move destination. Validated as strictly as `target`; a half-understood
+    // move must never be silently accepted. In particular `dest` + `proposal` on one
+    // record is rejected outright: a kernel that knows only `proposal` could apply the
+    // replacement without the move (a half-apply).
+    if (value.kind !== "comment") return bad('dest is only valid on kind "comment"');
+    if (value.proposal !== undefined) return bad("a record cannot carry both dest and proposal");
+    if (!isObj(value.dest)) return bad("invalid dest");
+    const dq = value.dest.quote;
+    const dp = value.dest.position;
+    if (
+      !isObj(dq) ||
+      typeof dq.exact !== "string" ||
+      dq.exact.length === 0 ||
+      typeof dq.prefix !== "string" ||
+      typeof dq.suffix !== "string"
+    ) {
+      return bad("invalid dest.quote (exact must be a non-empty string)");
+    }
+    if (!isObj(dp) || !Number.isFinite(dp.start) || !Number.isFinite(dp.end)) return bad("invalid dest.position");
+    if (value.dest.side !== "before" && value.dest.side !== "after") {
+      return bad('invalid dest.side (must be "before" or "after")');
+    }
+  }
   return value as unknown as Record;
 }
 

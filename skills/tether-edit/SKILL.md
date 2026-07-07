@@ -23,6 +23,8 @@ Tether MD anchors comments inside a Markdown file. The `.md` is `clean_document 
    ```
    Each item has `id`, `author`, `quote` (the anchored phrase), `body` (the instruction), `status`, and `anchor`. Work the ones with `author: "human"`, `status: "open"`, and no existing proposal.
 
+   > An item with a `moveTo` field is a **pending move** (the human marked "move this text there" in the editor). It is already fully specified and human-applied — do **not** suggest on it, edit around it, or resolve it; leave it for the human to Accept Move in the editor.
+
 3. **Propose a rewrite for each**, addressed by `id` — your `--to` text replaces that comment's anchored `quote` if the human accepts:
    ```
    tether comment suggest <file> <id> --to "the rewritten version of the quoted phrase" --write
