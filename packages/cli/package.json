@@ -53,7 +53,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@tether-md/kernel": "^0.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "license": "MIT"
 }
